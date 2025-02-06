@@ -1,68 +1,175 @@
-:root {
-  font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
-  line-height: 1.5;
-  font-weight: 400;
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
-  color-scheme: light dark;
-  color: rgba(255, 255, 255, 0.87);
-  background-color: #242424;
+@layer base {
+  html {
+    font-size: 16px;
+    -webkit-tap-highlight-color: transparent;
+  }
 
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-}
+  @screen sm {
+    html {
+      font-size: 16.5px;
+    }
+  }
 
-a {
-  font-weight: 500;
-  color: #646cff;
-  text-decoration: inherit;
-}
-a:hover {
-  color: #535bf2;
-}
+  @screen lg {
+    html {
+      font-size: 17px;
+    }
+  }
 
-body {
-  margin: 0;
-  display: flex;
-  place-items: center;
-  min-width: 320px;
-  min-height: 100vh;
-}
+  body {
+    @apply bg-[#FFFFE0] text-base antialiased;
+    -webkit-tap-highlight-color: transparent;
+  }
 
-h1 {
-  font-size: 3.2em;
-  line-height: 1.1;
-}
+  /* Improved touch targets for mobile */
+  @screen xs {
+    button, 
+    a,
+    [role="button"],
+    input[type="submit"],
+    input[type="button"] {
+      @apply min-h-[44px] min-w-[44px];
+      touch-action: manipulation;
+    }
+  }
 
-button {
-  border-radius: 8px;
-  border: 1px solid transparent;
-  padding: 0.6em 1.2em;
-  font-size: 1em;
-  font-weight: 500;
-  font-family: inherit;
-  background-color: #1a1a1a;
-  cursor: pointer;
-  transition: border-color 0.25s;
-}
-button:hover {
-  border-color: #646cff;
-}
-button:focus,
-button:focus-visible {
-  outline: 4px auto -webkit-focus-ring-color;
+  /* Remove tap highlight on mobile */
+  * {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* Prevent scrolling when modal is open */
+  body.modal-open {
+    @apply overflow-hidden;
+  }
 }
 
-@media (prefers-color-scheme: light) {
+@layer components {
+  /* Z-index hierarchy */
   :root {
-    color: #213547;
-    background-color: #ffffff;
+    --z-modal-backdrop: 100;
+    --z-modal: 110;
+    --z-navbar: 50;
+    --z-dropdown: 40;
+    --z-scanlines: 120;
+    --navbar-height: 4rem;
+    --navbar-height-sm: 5rem;
   }
-  a:hover {
-    color: #747bff;
+
+  /* Main content wrapper with navbar spacing */
+  .content-wrapper {
+    @apply pt-[var(--navbar-height)] sm:pt-[var(--navbar-height-sm)];
   }
-  button {
-    background-color: #f9f9f9;
+
+  .container-fluid {
+    @apply w-full max-w-[90rem] mx-auto px-4 sm:px-6 lg:px-8;
+  }
+
+  .retro-container {
+    @apply relative border-4 border-gray-800 p-4 sm:p-6;
+    box-shadow: 4px 4px 0px rgba(0, 0, 0, 0.2);
+  }
+
+  .retro-button {
+    @apply px-4 py-2 bg-gray-800 text-white font-['Press_Start_2P'] text-sm transition-all
+           sm:text-base sm:px-6 sm:py-3
+           focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-800
+           active:translate-y-0.5 active:translate-x-0.5;
+    box-shadow: 4px 4px 0px rgba(0, 0, 0, 0.2);
+  }
+
+  .retro-button:hover {
+    transform: translate(2px, 2px);
+    box-shadow: 2px 2px 0px rgba(0, 0, 0, 0.2);
+  }
+
+  .retro-input {
+    @apply w-full border-4 border-gray-800 bg-white px-3 py-2 text-sm
+           placeholder:text-gray-400
+           focus:outline-none focus:ring-2 focus:ring-blue-500;
+    box-shadow: inset 2px 2px 0px rgba(0, 0, 0, 0.1);
+  }
+
+  /* Time input specific styles */
+  input[type="time"].retro-input {
+    @apply px-2 py-1;
+    min-height: 44px;
+  }
+
+  .retro-title {
+    @apply font-['Press_Start_2P'] text-gray-800 mb-6
+           text-lg sm:text-xl lg:text-2xl;
+  }
+
+  /* Modal styles */
+  .modal-backdrop {
+    @apply fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm transition-opacity;
+    z-index: var(--z-modal-backdrop);
+  }
+
+  .modal-container {
+    @apply fixed inset-0 flex items-start justify-center p-4 transition-opacity overflow-y-auto;
+    z-index: var(--z-modal);
+  }
+
+  .modal-content {
+    @apply w-full max-w-2xl bg-white border-4 border-gray-800 shadow-lg transform transition-all my-8;
+    box-shadow: 8px 8px 0px rgba(0, 0, 0, 0.2);
+  }
+
+  .modal-header {
+    @apply px-6 py-4 bg-gray-800 border-b-4 border-gray-900;
+  }
+
+  .modal-body {
+    @apply px-6 py-4;
+  }
+
+  .modal-footer {
+    @apply px-6 py-4 bg-gray-100 border-t-4 border-gray-800 flex justify-end space-x-4;
+  }
+
+  .scanlines {
+    @apply pointer-events-none fixed inset-0;
+    z-index: var(--z-scanlines);
+    background: repeating-linear-gradient(
+      0deg,
+      rgba(0, 0, 0, 0.03) 0px,
+      rgba(0, 0, 0, 0.03) 1px,
+      transparent 1px,
+      transparent 2px
+    );
+  }
+
+  .pixel-corners {
+    clip-path: polygon(
+      0 4px,
+      4px 4px,
+      4px 0,
+      calc(100% - 4px) 0,
+      calc(100% - 4px) 4px,
+      100% 4px,
+      100% calc(100% - 4px),
+      calc(100% - 4px) calc(100% - 4px),
+      calc(100% - 4px) 100%,
+      4px 100%,
+      4px calc(100% - 4px),
+      0 calc(100% - 4px)
+    );
+  }
+
+  /* Responsive grid layouts */
+  .grid-auto-fit {
+    @apply grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr));
+  }
+
+  .grid-auto-fill {
+    @apply grid;
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr));
   }
 }
