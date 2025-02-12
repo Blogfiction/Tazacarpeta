@@ -1,14 +1,19 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Edit2, Trash2, Calendar, MapPin, Link as LinkIcon } from 'lucide-react';
+import { Plus, Edit2, Trash2, Calendar, MapPin, Link as LinkIcon, TowerControl as GameController } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { Activity, ActivityInput } from '../types/database';
+import { Activity, ActivityInput, Game, Store } from '../types/database';
 import { getActivities, createActivity, updateActivity, deleteActivity } from '../services/activities';
+import { getGames } from '../services/games';
+import { getStores } from '../services/stores';
+import Modal from '../components/Modal';
 
 export default function ActivitiesAdmin() {
   const { session } = useAuth();
   const navigate = useNavigate();
   const [activities, setActivities] = useState<Activity[]>([]);
+  const [games, setGames] = useState<Game[]>([]);
+  const [stores, setStores] = useState<Store[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -17,7 +22,9 @@ export default function ActivitiesAdmin() {
     nombre: '',
     fecha: '',
     ubicacion: '',
-    enlace_referencia: ''
+    enlace_referencia: '',
+    id_juego: undefined,
+    id_tienda: undefined
   });
 
   useEffect(() => {
@@ -25,15 +32,21 @@ export default function ActivitiesAdmin() {
       navigate('/login');
       return;
     }
-    loadActivities();
+    loadData();
   }, [session, navigate]);
 
-  async function loadActivities() {
+  async function loadData() {
     try {
-      const data = await getActivities();
-      setActivities(data);
+      const [activitiesData, gamesData, storesData] = await Promise.all([
+        getActivities(),
+        getGames(),
+        getStores()
+      ]);
+      setActivities(activitiesData);
+      setGames(gamesData);
+      setStores(storesData);
     } catch (err) {
-      setError('Error al cargar las actividades');
+      setError('Error al cargar los datos');
     } finally {
       setLoading(false);
     }
@@ -50,7 +63,7 @@ export default function ActivitiesAdmin() {
         await createActivity(formData);
       }
       setIsModalOpen(false);
-      loadActivities();
+      loadData();
       resetForm();
     } catch (err) {
       setError('Error al guardar la actividad');
@@ -62,7 +75,7 @@ export default function ActivitiesAdmin() {
     
     try {
       await deleteActivity(id);
-      loadActivities();
+      loadData();
     } catch (err) {
       setError('Error al eliminar la actividad');
     }
@@ -87,8 +100,17 @@ export default function ActivitiesAdmin() {
       nombre: '',
       fecha: '',
       ubicacion: '',
-      enlace_referencia: ''
+      enlace_referencia: '',
+      id_juego: undefined,
+      id_tienda: undefined
     });
+  };
+
+  const validateForm = () => {
+    if (!formData.nombre || !formData.fecha || !formData.ubicacion) {
+      return false;
+    }
+    return true;
   };
 
   if (!session) return null;
@@ -117,134 +139,195 @@ export default function ActivitiesAdmin() {
 
         {loading ? (
           <div className="text-center py-12">
-            <div className="inline-block animate-spin rounded-full h-8 w-8 border-4 border-blue-600 border-r-transparent"></div>
+            <div className="inline-block animate-spin rounded-full h-8 w-8 border-4 border-gray-800 border-r-transparent"></div>
           </div>
         ) : (
-          <div className="bg-white shadow overflow-hidden sm:rounded-md">
+          <div className="bg-white shadow overflow-hidden sm:rounded-lg">
             <ul className="divide-y divide-gray-200">
-              {activities.map((activity) => (
-                <li key={activity.id_actividad}>
-                  <div className="px-4 py-4 sm:px-6">
-                    <div className="flex items-center justify-between">
-                      <div className="flex-1 min-w-0">
-                        <h3 className="text-lg font-medium text-gray-900 truncate">
-                          {activity.nombre}
-                        </h3>
-                        <div className="mt-2 flex items-center text-sm text-gray-500">
-                          <Calendar className="flex-shrink-0 mr-1.5 h-4 w-4" />
-                          {new Date(activity.fecha).toLocaleString()}
-                        </div>
-                        <div className="mt-2 flex items-center text-sm text-gray-500">
-                          <MapPin className="flex-shrink-0 mr-1.5 h-4 w-4" />
-                          {activity.ubicacion}
-                        </div>
-                        {activity.enlace_referencia && (
-                          <div className="mt-2 flex items-center text-sm text-blue-600">
-                            <LinkIcon className="flex-shrink-0 mr-1.5 h-4 w-4" />
-                            <a href={activity.enlace_referencia} target="_blank" rel="noopener noreferrer">
-                              Enlace de referencia
-                            </a>
+              {activities.map((activity) => {
+                const game = games.find(g => g.id_juego === activity.id_juego);
+                const store = stores.find(s => s.id_tienda === activity.id_tienda);
+
+                return (
+                  <li key={activity.id_actividad}>
+                    <div className="px-4 py-4 sm:px-6">
+                      <div className="flex items-center justify-between">
+                        <div className="flex-1 min-w-0">
+                          <h3 className="text-lg font-medium text-gray-900 truncate">
+                            {activity.nombre}
+                          </h3>
+                          <div className="mt-2 flex items-center text-sm text-gray-500">
+                            <Calendar className="flex-shrink-0 mr-1.5 h-4 w-4" />
+                            {new Date(activity.fecha).toLocaleString()}
                           </div>
-                        )}
-                      </div>
-                      <div className="flex space-x-2">
-                        <button
-                          onClick={() => openEditModal(activity)}
-                          className="p-2 text-blue-600 hover:text-blue-800"
-                        >
-                          <Edit2 className="h-5 w-5" />
-                        </button>
-                        <button
-                          onClick={() => handleDelete(activity.id_actividad)}
-                          className="p-2 text-red-600 hover:text-red-800"
-                        >
-                          <Trash2 className="h-5 w-5" />
-                        </button>
+                          <div className="mt-2 flex items-center text-sm text-gray-500">
+                            <MapPin className="flex-shrink-0 mr-1.5 h-4 w-4" />
+                            {activity.ubicacion}
+                          </div>
+                          {game && (
+                            <div className="mt-2 flex items-center text-sm text-blue-600">
+                              <GameController className="flex-shrink-0 mr-1.5 h-4 w-4" />
+                              {game.nombre}
+                            </div>
+                          )}
+                          {store && (
+                            <div className="mt-2 flex items-center text-sm text-green-600">
+                              <MapPin className="flex-shrink-0 mr-1.5 h-4 w-4" />
+                              {store.nombre}
+                            </div>
+                          )}
+                          {activity.enlace_referencia && (
+                            <div className="mt-2 flex items-center text-sm text-blue-600">
+                              <LinkIcon className="flex-shrink-0 mr-1.5 h-4 w-4" />
+                              <a href={activity.enlace_referencia} target="_blank" rel="noopener noreferrer">
+                                Enlace de referencia
+                              </a>
+                            </div>
+                          )}
+                        </div>
+                        <div className="flex space-x-2">
+                          <button
+                            onClick={() => openEditModal(activity)}
+                            className="p-2 text-blue-600 hover:text-blue-800"
+                          >
+                            <Edit2 className="h-5 w-5" />
+                          </button>
+                          <button
+                            onClick={() => handleDelete(activity.id_actividad)}
+                            className="p-2 text-red-600 hover:text-red-800"
+                          >
+                            <Trash2 className="h-5 w-5" />
+                          </button>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                </li>
-              ))}
+                  </li>
+                );
+              })}
             </ul>
           </div>
         )}
 
-        {isModalOpen && (
-          <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center p-4">
-            <div className="bg-white rounded-lg max-w-md w-full p-6">
-              <h2 className="text-xl font-semibold mb-4">
-                {currentActivity ? 'Editar' : 'Nueva'} Actividad
-              </h2>
-              <form onSubmit={handleSubmit} className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">
-                    Nombre
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={formData.nombre}
-                    onChange={(e) => setFormData({ ...formData, nombre: e.target.value })}
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">
-                    Fecha y Hora
-                  </label>
-                  <input
-                    type="datetime-local"
-                    required
-                    value={formData.fecha}
-                    onChange={(e) => setFormData({ ...formData, fecha: e.target.value })}
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">
-                    Ubicación
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={formData.ubicacion}
-                    onChange={(e) => setFormData({ ...formData, ubicacion: e.target.value })}
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">
-                    Enlace de Referencia
-                  </label>
-                  <input
-                    type="url"
-                    value={formData.enlace_referencia || ''}
-                    onChange={(e) => setFormData({ ...formData, enlace_referencia: e.target.value })}
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                  />
-                </div>
-                <div className="flex justify-end space-x-3 mt-6">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setIsModalOpen(false);
-                      resetForm();
-                    }}
-                    className="retro-button bg-gray-600 hover:bg-gray-700"
-                  >
-                    Cancelar
-                  </button>
-                  <button
-                    type="submit"
-                    className="retro-button"
-                  >
-                    {currentActivity ? 'Actualizar' : 'Crear'}
-                  </button>
-                </div>
-              </form>
+        <Modal
+          isOpen={isModalOpen}
+          onClose={() => {
+            setIsModalOpen(false);
+            resetForm();
+          }}
+          title={currentActivity ? 'Editar Actividad' : 'Nueva Actividad'}
+        >
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <div>
+              <label className="block font-press-start text-xs text-gray-700 mb-2">
+                Nombre
+              </label>
+              <input
+                type="text"
+                required
+                value={formData.nombre}
+                onChange={(e) => setFormData({ ...formData, nombre: e.target.value })}
+                className="retro-input"
+                placeholder="Nombre de la actividad"
+              />
             </div>
-          </div>
-        )}
+
+            <div>
+              <label className="block font-press-start text-xs text-gray-700 mb-2">
+                Fecha y Hora
+              </label>
+              <input
+                type="datetime-local"
+                required
+                value={formData.fecha}
+                onChange={(e) => setFormData({ ...formData, fecha: e.target.value })}
+                className="retro-input"
+              />
+            </div>
+
+            <div>
+              <label className="block font-press-start text-xs text-gray-700 mb-2">
+                Ubicación
+              </label>
+              <input
+                type="text"
+                required
+                value={formData.ubicacion}
+                onChange={(e) => setFormData({ ...formData, ubicacion: e.target.value })}
+                className="retro-input"
+                placeholder="Ubicación de la actividad"
+              />
+            </div>
+
+            <div>
+              <label className="block font-press-start text-xs text-gray-700 mb-2">
+                Tienda
+              </label>
+              <select
+                value={formData.id_tienda || ''}
+                onChange={(e) => setFormData({ ...formData, id_tienda: e.target.value || undefined })}
+                className="retro-input"
+              >
+                <option value="">Selecciona una tienda</option>
+                {stores.map((store) => (
+                  <option key={store.id_tienda} value={store.id_tienda}>
+                    {store.nombre}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block font-press-start text-xs text-gray-700 mb-2">
+                Juego
+              </label>
+              <select
+                value={formData.id_juego || ''}
+                onChange={(e) => setFormData({ ...formData, id_juego: e.target.value || undefined })}
+                className="retro-input"
+              >
+                <option value="">Selecciona un juego</option>
+                {games.map((game) => (
+                  <option key={game.id_juego} value={game.id_juego}>
+                    {game.nombre}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block font-press-start text-xs text-gray-700 mb-2">
+                Enlace de Referencia
+              </label>
+              <input
+                type="url"
+                value={formData.enlace_referencia || ''}
+                onChange={(e) => setFormData({ ...formData, enlace_referencia: e.target.value })}
+                className="retro-input"
+                placeholder="https://ejemplo.com"
+              />
+            </div>
+
+            <div className="modal-footer">
+              <button
+                type="button"
+                onClick={() => {
+                  setIsModalOpen(false);
+                  resetForm();
+                }}
+                className="retro-button bg-gray-600 hover:bg-gray-700"
+              >
+                Cancelar
+              </button>
+              <button
+                type="submit"
+                className="retro-button"
+                disabled={!validateForm()}
+              >
+                {currentActivity ? 'Actualizar' : 'Crear'}
+              </button>
+            </div>
+          </form>
+        </Modal>
       </div>
     </div>
   );

@@ -1,12 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { 
-  LayoutDashboard, 
-  Calendar as CalendarIcon, 
-  Store, 
-  Menu,
-  X
-} from 'lucide-react';
+import { LayoutDashboard, Calendar as CalendarIcon, Store, TowerControl as GameController, Menu, X } from 'lucide-react';
 import UserProfile from './UserProfile';
 
 export default function Navbar() {
@@ -23,7 +17,6 @@ export default function Navbar() {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  // Close mobile menu when location changes
   useEffect(() => {
     setIsMenuOpen(false);
   }, [location]);
@@ -32,12 +25,13 @@ export default function Navbar() {
     { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
     { name: 'Actividades', href: '/activities', icon: CalendarIcon },
     { name: 'Tiendas', href: '/stores', icon: Store },
+    { name: 'Juegos', href: '/games', icon: GameController },
   ];
 
   const isActive = (path: string) => location.pathname === path;
 
   const handleMenuToggle = (e: React.MouseEvent) => {
-    e.stopPropagation(); // Prevent event bubbling
+    e.stopPropagation();
     setIsMenuOpen(!isMenuOpen);
   };
 
@@ -47,7 +41,6 @@ export default function Navbar() {
                     border-b-4 border-gray-900`}>
       <div className="container-fluid h-full">
         <div className="flex items-center justify-between h-full">
-          {/* Logo */}
           <div className="flex items-center">
             <Link 
               to="/dashboard" 
@@ -58,7 +51,6 @@ export default function Navbar() {
             </Link>
           </div>
           
-          {/* Desktop Navigation */}
           <div className="hidden md:flex items-center space-x-4 lg:space-x-6">
             {navigation.map((item) => {
               const Icon = item.icon;
@@ -79,12 +71,9 @@ export default function Navbar() {
             })}
           </div>
 
-          {/* Right side items */}
           <div className="flex items-center space-x-4">
-            {/* User Profile */}
             <UserProfile />
 
-            {/* Mobile menu button - Improved touch target */}
             <button
               onClick={handleMenuToggle}
               className="md:hidden inline-flex items-center justify-center min-h-[44px] min-w-[44px] p-2 
@@ -104,7 +93,6 @@ export default function Navbar() {
           </div>
         </div>
 
-        {/* Mobile menu - Improved animation and interaction */}
         <div 
           className={`md:hidden fixed left-0 right-0 bg-gray-800 border-b-4 border-gray-900 
                      shadow-lg transition-all duration-300 ease-in-out transform
@@ -123,7 +111,7 @@ export default function Navbar() {
                              ${isActive(item.href)
                                ? 'text-yellow-200 bg-gray-900 border-l-4 border-yellow-200'
                                : 'text-gray-300 hover:bg-gray-700 hover:text-yellow-200'}`}
-                  onClick={(e) => e.stopPropagation()} // Prevent event bubbling
+                  onClick={(e) => e.stopPropagation()}
                 >
                   <div className="flex items-center">
                     <Icon className="h-5 w-5 mr-2" />

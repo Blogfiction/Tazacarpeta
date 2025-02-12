@@ -1,5 +1,33 @@
 import { Database } from './supabase';
 
+export interface Game {
+  id_juego: string;
+  nombre: string;
+  descripcion: string;
+  categoria: string;
+  edad_minima: number;
+  edad_maxima: number | null;
+  jugadores_min: number;
+  jugadores_max: number;
+  duracion_min: number;
+  duracion_max: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface GameInput {
+  nombre: string;
+  descripcion: string;
+  categoria: string;
+  edad_minima: number;
+  edad_maxima?: number | null;
+  jugadores_min: number;
+  jugadores_max: number;
+  duracion_min: number;
+  duracion_max: number;
+}
+
+// Resto de las interfaces se mantienen igual
 export interface Activity {
   id_actividad: string;
   id_tienda: string | null;
@@ -62,4 +90,19 @@ export interface Profile {
   pais: string | null;
   tipo_plan: string;
   updated_at: string;
+}
+
+export interface StoreGame {
+  id_tienda: string;
+  id_juego: string;
+  stock: number;
+  precio: number;
+  created_at: string;
+}
+
+export interface StoreGameInput {
+  id_tienda: string;
+  id_juego: string;
+  stock: number;
+  precio: number;
 }

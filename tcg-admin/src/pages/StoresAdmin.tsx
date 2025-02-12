@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Edit2, Trash2, MapPin, Clock } from 'lucide-react';
+import { Plus, Edit2, Trash2, MapPin, Clock, TowerControl as GameController } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { Store, StoreInput, Direccion, HorarioTienda } from '../types/database';
+import { Store, StoreInput, Direccion, HorarioTienda, Game, StoreGameInput } from '../types/database';
 import { getStores, createStore, updateStore, deleteStore } from '../services/stores';
+import { getGames } from '../services/games';
+import { addGameToStore, removeGameFromStore, getStoreGames, updateStoreGame } from '../services/games';
 import Modal from '../components/Modal';
 
 const DIAS_SEMANA = ['lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado', 'domingo'];
@@ -12,16 +14,26 @@ const PLANES = ['básico', 'premium', 'enterprise'];
 const HORARIO_INICIAL: HorarioTienda = DIAS_SEMANA.reduce((acc, dia) => ({
   ...acc,
   [dia]: { apertura: '09:00', cierre: '18:00' }
-}), {});
+}), {} as HorarioTienda);
+
+interface StoreGameFormData {
+  id_juego: string;
+  stock: number;
+  precio: number;
+}
 
 export default function StoresAdmin() {
   const { session } = useAuth();
   const navigate = useNavigate();
   const [stores, setStores] = useState<Store[]>([]);
+  const [games, setGames] = useState<Game[]>([]);
+  const [storeGames, setStoreGames] = useState<Map<string, StoreGameFormData>>(new Map());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isGameModalOpen, setIsGameModalOpen] = useState(false);
   const [currentStore, setCurrentStore] = useState<Store | null>(null);
+  const [selectedStore, setSelectedStore] = useState<Store | null>(null);
   const [formData, setFormData] = useState<StoreInput>({
     nombre: '',
     direccion: {
@@ -34,29 +46,11 @@ export default function StoresAdmin() {
     horario: HORARIO_INICIAL,
     plan: 'básico'
   });
-
-  const handleDireccionChange = (field: keyof Direccion, value: string) => {
-    setFormData({
-      ...formData,
-      direccion: {
-        ...formData.direccion,
-        [field]: value
-      }
-    });
-  };
-
-  const handleHorarioChange = (dia: string, tipo: 'apertura' | 'cierre', valor: string) => {
-    setFormData({
-      ...formData,
-      horario: {
-        ...formData.horario,
-        [dia]: {
-          ...formData.horario[dia],
-          [tipo]: valor
-        }
-      }
-    });
-  };
+  const [gameFormData, setGameFormData] = useState<StoreGameFormData>({
+    id_juego: '',
+    stock: 0,
+    precio: 0
+  });
 
   useEffect(() => {
     if (!session) {
@@ -64,6 +58,7 @@ export default function StoresAdmin() {
       return;
     }
     loadStores();
+    loadGames();
   }, [session, navigate]);
 
   async function loadStores() {
@@ -74,6 +69,32 @@ export default function StoresAdmin() {
       setError('Error al cargar las tiendas');
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function loadGames() {
+    try {
+      const data = await getGames();
+      setGames(data);
+    } catch (err) {
+      setError('Error al cargar los juegos');
+    }
+  }
+
+  async function loadStoreGames(storeId: string) {
+    try {
+      const data = await getStoreGames(storeId);
+      const gamesMap = new Map();
+      data.forEach(sg => {
+        gamesMap.set(sg.id_juego, {
+          id_juego: sg.id_juego,
+          stock: sg.stock,
+          precio: sg.precio
+        });
+      });
+      setStoreGames(gamesMap);
+    } catch (err) {
+      setError('Error al cargar los juegos de la tienda');
     }
   }
 
@@ -95,6 +116,31 @@ export default function StoresAdmin() {
     }
   };
 
+  const handleGameSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedStore) return;
+
+    try {
+      if (storeGames.has(gameFormData.id_juego)) {
+        await updateStoreGame(
+          selectedStore.id_tienda,
+          gameFormData.id_juego,
+          gameFormData
+        );
+      } else {
+        await addGameToStore({
+          id_tienda: selectedStore.id_tienda,
+          ...gameFormData
+        });
+      }
+      await loadStoreGames(selectedStore.id_tienda);
+      setIsGameModalOpen(false);
+      resetGameForm();
+    } catch (err) {
+      setError('Error al guardar el juego en la tienda');
+    }
+  };
+
   const handleDelete = async (id: string) => {
     if (!confirm('¿Estás seguro de que deseas eliminar esta tienda?')) return;
     
@@ -103,6 +149,17 @@ export default function StoresAdmin() {
       loadStores();
     } catch (err) {
       setError('Error al eliminar la tienda');
+    }
+  };
+
+  const handleRemoveGame = async (gameId: string) => {
+    if (!selectedStore || !confirm('¿Estás seguro de que deseas eliminar este juego de la tienda?')) return;
+
+    try {
+      await removeGameFromStore(selectedStore.id_tienda, gameId);
+      await loadStoreGames(selectedStore.id_tienda);
+    } catch (err) {
+      setError('Error al eliminar el juego de la tienda');
     }
   };
 
@@ -115,6 +172,12 @@ export default function StoresAdmin() {
       plan: store.plan
     });
     setIsModalOpen(true);
+  };
+
+  const openGameModal = (store: Store) => {
+    setSelectedStore(store);
+    loadStoreGames(store.id_tienda);
+    setIsGameModalOpen(true);
   };
 
   const resetForm = () => {
@@ -130,6 +193,14 @@ export default function StoresAdmin() {
       },
       horario: HORARIO_INICIAL,
       plan: 'básico'
+    });
+  };
+
+  const resetGameForm = () => {
+    setGameFormData({
+      id_juego: '',
+      stock: 0,
+      precio: 0
     });
   };
 
@@ -186,7 +257,14 @@ export default function StoresAdmin() {
                           </span>
                         </div>
                       </div>
-                      <div className="flex space-x-2">
+                      <div className="flex space-x-4">
+                        <button
+                          onClick={() => openGameModal(store)}
+                          className="retro-button inline-flex items-center bg-blue-600 hover:bg-blue-700"
+                        >
+                          <GameController className="h-4 w-4 mr-2" />
+                          <span className="font-press-start text-xs">Gestionar Juegos</span>
+                        </button>
                         <button
                           onClick={() => openEditModal(store)}
                           className="p-2 text-blue-600 hover:text-blue-800"
@@ -208,6 +286,106 @@ export default function StoresAdmin() {
           </div>
         )}
 
+        {/* Modal de Juegos */}
+        <Modal
+          isOpen={isGameModalOpen}
+          onClose={() => {
+            setIsGameModalOpen(false);
+            setSelectedStore(null);
+            resetGameForm();
+          }}
+          title="Gestionar Juegos de la Tienda"
+        >
+          <div className="space-y-6">
+            <form onSubmit={handleGameSubmit} className="space-y-4">
+              <div>
+                <label className="block font-press-start text-xs text-gray-700 mb-2">
+                  Juego
+                </label>
+                <select
+                  value={gameFormData.id_juego}
+                  onChange={(e) => setGameFormData({ ...gameFormData, id_juego: e.target.value })}
+                  className="retro-input"
+                  required
+                >
+                  <option value="">Selecciona un juego</option>
+                  {games.map((game) => (
+                    <option key={game.id_juego} value={game.id_juego}>
+                      {game.nombre}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block font-press-start text-xs text-gray-700 mb-2">
+                    Stock
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={gameFormData.stock}
+                    onChange={(e) => setGameFormData({ ...gameFormData, stock: parseInt(e.target.value) })}
+                    className="retro-input"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block font-press-start text-xs text-gray-700 mb-2">
+                    Precio
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={gameFormData.precio}
+                    onChange={(e) => setGameFormData({ ...gameFormData, precio: parseFloat(e.target.value) })}
+                    className="retro-input"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="flex justify-end">
+                <button type="submit" className="retro-button">
+                  Agregar Juego
+                </button>
+              </div>
+            </form>
+
+            <div className="mt-6">
+              <h3 className="font-press-start text-sm text-gray-800 mb-4">
+                Juegos en la Tienda
+              </h3>
+              <div className="space-y-4">
+                {Array.from(storeGames.entries()).map(([gameId, data]) => {
+                  const game = games.find(g => g.id_juego === gameId);
+                  if (!game) return null;
+
+                  return (
+                    <div key={gameId} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                      <div>
+                        <h4 className="font-medium text-gray-900">{game.nombre}</h4>
+                        <p className="text-sm text-gray-600">
+                          Stock: {data.stock} | Precio: ${data.precio}
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => handleRemoveGame(gameId)}
+                        className="p-2 text-red-600 hover:text-red-800"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        </Modal>
+
+        {/* Modal de Tienda */}
         <Modal
           isOpen={isModalOpen}
           onClose={() => {
@@ -242,7 +420,10 @@ export default function StoresAdmin() {
                     type="text"
                     required
                     value={formData.direccion.calle}
-                    onChange={(e) => handleDireccionChange('calle', e.target.value)}
+                    onChange={(e) => setFormData({
+                      ...formData,
+                      direccion: { ...formData.direccion, calle: e.target.value }
+                    })}
                     className="retro-input"
                     placeholder="Nombre de la calle"
                   />
@@ -255,7 +436,10 @@ export default function StoresAdmin() {
                     type="text"
                     required
                     value={formData.direccion.numero}
-                    onChange={(e) => handleDireccionChange('numero', e.target.value)}
+                    onChange={(e) => setFormData({
+                      ...formData,
+                      direccion: { ...formData.direccion, numero: e.target.value }
+                    })}
                     className="retro-input"
                     placeholder="Número exterior"
                   />
@@ -268,7 +452,10 @@ export default function StoresAdmin() {
                     type="text"
                     required
                     value={formData.direccion.ciudad}
-                    onChange={(e) => handleDireccionChange('ciudad', e.target.value)}
+                    onChange={(e) => setFormData({
+                      ...formData,
+                      direccion: { ...formData.direccion, ciudad: e.target.value }
+                    })}
                     className="retro-input"
                     placeholder="Ciudad"
                   />
@@ -281,7 +468,10 @@ export default function StoresAdmin() {
                     type="text"
                     required
                     value={formData.direccion.estado}
-                    onChange={(e) => handleDireccionChange('estado', e.target.value)}
+                    onChange={(e) => setFormData({
+                      ...formData,
+                      direccion: { ...formData.direccion, estado: e.target.value }
+                    })}
                     className="retro-input"
                     placeholder="Estado"
                   />
@@ -294,7 +484,10 @@ export default function StoresAdmin() {
                     type="text"
                     required
                     value={formData.direccion.cp}
-                    onChange={(e) => handleDireccionChange('cp', e.target.value)}
+                    onChange={(e) => setFormData({
+                      ...formData,
+                      direccion: { ...formData.direccion, cp: e.target.value }
+                    })}
                     className="retro-input"
                     placeholder="CP"
                   />
@@ -315,7 +508,13 @@ export default function StoresAdmin() {
                           type="time"
                           required
                           value={formData.horario[dia].apertura}
-                          onChange={(e) => handleHorarioChange(dia, 'apertura', e.target.value)}
+                          onChange={(e) => setFormData({
+                            ...formData,
+                            horario: {
+                              ...formData.horario,
+                              [dia]: { ...formData.horario[dia], apertura: e.target.value }
+                            }
+                          })}
                           className="retro-input"
                         />
                       </div>
@@ -325,7 +524,13 @@ export default function StoresAdmin() {
                           type="time"
                           required
                           value={formData.horario[dia].cierre}
-                          onChange={(e) => handleHorarioChange(dia, 'cierre', e.target.value)}
+                          onChange={(e) => setFormData({
+                            ...formData,
+                            horario: {
+                              ...formData.horario,
+                              [dia]: { ...formData.horario[dia], cierre: e.target.value }
+                            }
+                          })}
                           className="retro-input"
                         />
                       </div>
