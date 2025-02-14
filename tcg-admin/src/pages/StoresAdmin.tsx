@@ -7,6 +7,7 @@ import { getStores, createStore, updateStore, deleteStore } from '../services/st
 import { getGames } from '../services/games';
 import { addGameToStore, removeGameFromStore, getStoreGames, updateStoreGame } from '../services/games';
 import Modal from '../components/Modal';
+import LoadingScreen from '../components/LoadingScreen';
 
 const DIAS_SEMANA = ['lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado', 'domingo'];
 const PLANES = ['básico', 'premium', 'enterprise'];
@@ -229,9 +230,7 @@ export default function StoresAdmin() {
         )}
 
         {loading ? (
-          <div className="text-center py-12">
-            <div className="inline-block animate-spin rounded-full h-8 w-8 border-4 border-gray-800 border-r-transparent"></div>
-          </div>
+          <LoadingScreen />
         ) : (
           <div className="bg-white shadow overflow-hidden sm:rounded-lg">
             <ul className="divide-y divide-gray-200">

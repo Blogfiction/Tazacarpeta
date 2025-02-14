@@ -42,9 +42,16 @@
     -webkit-tap-highlight-color: transparent;
   }
 
-  /* Prevent scrolling when modal is open */
-  body.modal-open {
-    @apply overflow-hidden;
+  /* Focus styles */
+  :focus-visible {
+    @apply outline-none ring-2 ring-offset-2 ring-gray-800;
+  }
+
+  /* High contrast mode support */
+  @media (forced-colors: active) {
+    * {
+      @apply border-current;
+    }
   }
 }
 
@@ -78,11 +85,12 @@
     @apply px-4 py-2 bg-gray-800 text-white font-['Press_Start_2P'] text-sm transition-all
            sm:text-base sm:px-6 sm:py-3
            focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-800
-           active:translate-y-0.5 active:translate-x-0.5;
+           active:translate-y-0.5 active:translate-x-0.5
+           disabled:opacity-50 disabled:cursor-not-allowed;
     box-shadow: 4px 4px 0px rgba(0, 0, 0, 0.2);
   }
 
-  .retro-button:hover {
+  .retro-button:hover:not(:disabled) {
     transform: translate(2px, 2px);
     box-shadow: 2px 2px 0px rgba(0, 0, 0, 0.2);
   }
@@ -90,7 +98,8 @@
   .retro-input {
     @apply w-full border-4 border-gray-800 bg-white px-3 py-2 text-sm
            placeholder:text-gray-400
-           focus:outline-none focus:ring-2 focus:ring-blue-500;
+           focus:outline-none focus:ring-2 focus:ring-blue-500
+           disabled:opacity-50 disabled:cursor-not-allowed;
     box-shadow: inset 2px 2px 0px rgba(0, 0, 0, 0.1);
   }
 
@@ -171,5 +180,12 @@
   .grid-auto-fill {
     @apply grid;
     grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr));
+  }
+
+  /* Skip to main content link */
+  .skip-to-content {
+    @apply sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4
+           bg-white px-4 py-2 z-50 font-press-start text-sm text-gray-800
+           border-4 border-gray-800;
   }
 }

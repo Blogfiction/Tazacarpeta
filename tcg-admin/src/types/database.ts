@@ -27,7 +27,6 @@ export interface GameInput {
   duracion_max: number;
 }
 
-// Resto de las interfaces se mantienen igual
 export interface Activity {
   id_actividad: string;
   id_tienda: string | null;
@@ -89,7 +88,18 @@ export interface Profile {
   comuna_region: string | null;
   pais: string | null;
   tipo_plan: string;
+  email: string | null;
   updated_at: string;
+}
+
+export interface UserActivityStats {
+  id: string;
+  nombre: string | null;
+  apellido: string | null;
+  email: string | null;
+  total_inscriptions: number;
+  total_searches: number;
+  last_activity: string | null;
 }
 
 export interface StoreGame {

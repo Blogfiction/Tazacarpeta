@@ -7,16 +7,19 @@ TCG Admin is a comprehensive management system designed for trading card game st
 ## Core Features
 
 ### 1. Authentication System
-- Email-based authentication
-- User profile management
+- Email-based authentication with Supabase
+- User profile management with customizable fields
 - Role-based access control
-- Session management
+- Secure session management
+- Password recovery and update functionality
 
 ### 2. Game Management
 - CRUD operations for games
-- Categorization system
+- Advanced filtering and search capabilities
+- Categorization system with predefined categories
 - Age and player count restrictions
 - Duration tracking
+- Stock and pricing management per store
 - Categories:
   - Strategy
   - Family
@@ -28,18 +31,33 @@ TCG Admin is a comprehensive management system designed for trading card game st
   - Others
 
 ### 3. Store Management
-- Store profile management
-- Operating hours configuration
-- Location management
-- Inventory tracking
+- Store profile management with detailed information
+- Operating hours configuration with flexible scheduling
+- Location management with address validation
+- Inventory tracking with real-time updates
 - Multiple store support
+- Game inventory management per store
+- Subscription plan management (Basic, Premium, Enterprise)
 
 ### 4. Activity Management
 - Event creation and management
-- Event registration
-- Calendar integration
+- Event registration system
+- Calendar integration with visual interface
 - Location tracking
 - Game association
+- Store association
+- Reference link support
+- Event status tracking
+
+### 5. User Interface
+- Responsive design for all devices
+- Retro-styled theme with pixel art aesthetics
+- Accessibility features (ARIA, keyboard navigation)
+- Toast notifications for user feedback
+- Modal dialogs for complex interactions
+- Interactive tooltips for help text
+- Loading states and error handling
+- Form validation with clear feedback
 
 ## Database Schema
 
@@ -90,6 +108,8 @@ TCG Admin is a comprehensive management system designed for trading card game st
 |------------|-----------|-------------------------------------------|
 | id_tienda  | UUID      | Store reference (composite primary key)    |
 | id_juego   | UUID      | Game reference (composite primary key)     |
+| stock      | INTEGER   | Current stock quantity                     |
+| precio     | DECIMAL   | Current price                             |
 | created_st | TIMESTAMP | Record creation timestamp                 |
 
 #### profiles
@@ -195,11 +215,28 @@ TCG Admin is a comprehensive management system designed for trading card game st
 ```json
 {
   "dependencies": {
+    "@floating-ui/react": "^0.26.9",
     "@supabase/supabase-js": "^2.39.7",
     "lucide-react": "^0.344.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
+    "react-hot-toast": "^2.4.1",
     "react-router-dom": "^6.22.2"
+  },
+  "devDependencies": {
+    "@types/react": "^18.2.56",
+    "@types/react-dom": "^18.2.19",
+    "@typescript-eslint/eslint-plugin": "^7.0.2",
+    "@typescript-eslint/parser": "^7.0.2",
+    "@vitejs/plugin-react": "^4.2.1",
+    "autoprefixer": "^10.4.18",
+    "eslint": "^8.56.0",
+    "eslint-plugin-react-hooks": "^4.6.0",
+    "eslint-plugin-react-refresh": "^0.4.5",
+    "postcss": "^8.4.35",
+    "tailwindcss": "^3.4.1",
+    "typescript": "^5.2.2",
+    "vite": "^5.1.4"
   }
 }
 ```
@@ -228,3 +265,23 @@ TCG Admin is a comprehensive management system designed for trading card game st
 - Validate all user inputs
 - Implement proper authentication checks
 - Regular security audits
+
+### UI/UX Guidelines
+- Follow accessibility best practices (WCAG 2.1)
+- Implement responsive design patterns
+- Use consistent error handling and user feedback
+- Support keyboard navigation
+- Maintain visual hierarchy
+- Provide clear user feedback
+- Implement loading states
+- Use appropriate touch targets for mobile
+
+### Performance Considerations
+- Implement lazy loading for routes
+- Optimize bundle size
+- Use proper caching strategies
+- Implement proper error boundaries
+- Monitor and optimize database queries
+- Use appropriate image optimization
+- Implement proper state management
+- Consider server-side rendering when needed

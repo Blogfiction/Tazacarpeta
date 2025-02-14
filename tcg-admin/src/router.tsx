@@ -1,4 +1,4 @@
-import { createBrowserRouter } from 'react-router-dom';
+import { createBrowserRouter, Navigate } from 'react-router-dom';
 import Layout from './components/Layout';
 import Home from './pages/Home';
 import Login from './pages/Login';
@@ -10,11 +10,14 @@ import StoresAdmin from './pages/StoresAdmin';
 import GamesAdmin from './pages/GamesAdmin';
 import Profile from './pages/Profile';
 import Settings from './pages/Settings';
+import ErrorScreen from './components/ErrorScreen';
+import ProtectedRoute from './components/ProtectedRoute';
 
 export const router = createBrowserRouter([
   {
     path: '/',
     element: <Home />,
+    errorElement: <ErrorScreen />,
   },
   {
     path: '/login',
@@ -26,30 +29,76 @@ export const router = createBrowserRouter([
   },
   {
     path: '/dashboard',
-    element: <Layout><Dashboard /></Layout>,
+    element: (
+      <ProtectedRoute>
+        <Layout>
+          <Dashboard />
+        </Layout>
+      </ProtectedRoute>
+    ),
   },
   {
     path: '/activities',
-    element: <Layout><ActivitiesAdmin /></Layout>,
+    element: (
+      <ProtectedRoute>
+        <Layout>
+          <ActivitiesAdmin />
+        </Layout>
+      </ProtectedRoute>
+    ),
   },
   {
     path: '/activities/:id',
-    element: <Layout><ActivityDetail /></Layout>,
+    element: (
+      <ProtectedRoute>
+        <Layout>
+          <ActivityDetail />
+        </Layout>
+      </ProtectedRoute>
+    ),
   },
   {
     path: '/stores',
-    element: <Layout><StoresAdmin /></Layout>,
+    element: (
+      <ProtectedRoute>
+        <Layout>
+          <StoresAdmin />
+        </Layout>
+      </ProtectedRoute>
+    ),
   },
   {
     path: '/games',
-    element: <Layout><GamesAdmin /></Layout>,
+    element: (
+      <ProtectedRoute>
+        <Layout>
+          <GamesAdmin />
+        </Layout>
+      </ProtectedRoute>
+    ),
   },
   {
     path: '/profile',
-    element: <Layout><Profile /></Layout>,
+    element: (
+      <ProtectedRoute>
+        <Layout>
+          <Profile />
+        </Layout>
+      </ProtectedRoute>
+    ),
   },
   {
     path: '/settings',
-    element: <Layout><Settings /></Layout>,
+    element: (
+      <ProtectedRoute>
+        <Layout>
+          <Settings />
+        </Layout>
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: '*',
+    element: <Navigate to="/" replace />,
   },
 ]);

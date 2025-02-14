@@ -1,47 +1,69 @@
-import { UserPlus } from 'lucide-react'
-import { Link, useNavigate } from 'react-router-dom'
-import { useState } from 'react'
-import { supabase } from '../lib/supabaseClient'
+import { UserPlus } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
+import { useState } from 'react';
+import { supabase } from '../lib/supabaseClient';
+import Button from '../components/Button';
+import Input from '../components/Input';
+import Toast from '../components/Toast';
+import toast from 'react-hot-toast';
 
 export default function Signup() {
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
-  const [confirmPassword, setConfirmPassword] = useState('')
-  const [error, setError] = useState('')
-  const [success, setSuccess] = useState('')
-  const [loading, setLoading] = useState(false)
-  const navigate = useNavigate()
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [formErrors, setFormErrors] = useState({
+    email: '',
+    password: '',
+    confirmPassword: ''
+  });
+  const navigate = useNavigate();
 
-  const validateEmail = (email: string) => {
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-    return emailRegex.test(email)
-  }
+  const validateForm = () => {
+    const errors = {
+      email: '',
+      password: '',
+      confirmPassword: ''
+    };
+    let isValid = true;
 
-  const validatePassword = (password: string) => {
-    return password.length >= 6
-  }
+    // Validación de email
+    if (!email) {
+      errors.email = 'El correo electrónico es requerido';
+      isValid = false;
+    } else if (!/\S+@\S+\.\S+/.test(email)) {
+      errors.email = 'Ingresa un correo electrónico válido';
+      isValid = false;
+    }
+
+    // Validación de contraseña
+    if (!password) {
+      errors.password = 'La contraseña es requerida';
+      isValid = false;
+    } else if (password.length < 6) {
+      errors.password = 'La contraseña debe tener al menos 6 caracteres';
+      isValid = false;
+    }
+
+    // Validación de confirmación de contraseña
+    if (!confirmPassword) {
+      errors.confirmPassword = 'Confirma tu contraseña';
+      isValid = false;
+    } else if (password !== confirmPassword) {
+      errors.confirmPassword = 'Las contraseñas no coinciden';
+      isValid = false;
+    }
+
+    setFormErrors(errors);
+    return isValid;
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
+    e.preventDefault();
     
-    if (!validateEmail(email)) {
-      setError('Por favor, ingresa un correo electrónico válido')
-      return
-    }
-
-    if (!validatePassword(password)) {
-      setError('La contraseña debe tener al menos 6 caracteres')
-      return
-    }
-
-    if (password !== confirmPassword) {
-      setError('Las contraseñas no coinciden')
-      return
-    }
-
-    setError('')
-    setSuccess('')
-    setLoading(true)
+    if (!validateForm()) return;
+    
+    setLoading(true);
 
     try {
       const { error, data } = await supabase.auth.signUp({
@@ -50,133 +72,115 @@ export default function Signup() {
         options: {
           emailRedirectTo: window.location.origin + '/login'
         }
-      })
+      });
       
       if (error) {
         switch (error.message) {
           case 'User already registered':
-            setError('Este correo electrónico ya está registrado')
-            break
+            toast.error('Este correo electrónico ya está registrado');
+            break;
           case 'Password should be at least 6 characters':
-            setError('La contraseña debe tener al menos 6 caracteres')
-            break
+            toast.error('La contraseña debe tener al menos 6 caracteres');
+            break;
           case 'Database error saving new user':
-            setError('Error al crear el usuario. Por favor, intenta de nuevo más tarde')
-            break
+            toast.error('Error al crear el usuario. Por favor, intenta de nuevo más tarde');
+            break;
           default:
-            setError(error.message)
+            toast.error(error.message);
         }
       } else if (data.user) {
-        setSuccess('Registro exitoso. Redirigiendo al login...')
+        toast.success('Registro exitoso. Redirigiendo al login...');
         setTimeout(() => {
-          navigate('/login')
-        }, 2000)
+          navigate('/login');
+        }, 2000);
       }
     } catch (err) {
-      setError('Error al conectar con el servidor')
+      toast.error('Error al conectar con el servidor');
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   return (
     <div className="min-h-screen bg-[#FFFFE0] flex flex-col items-center justify-center p-4">
-      <div className="scanlines"></div>
-      <div className="retro-container bg-white w-full max-w-md">
+      <div className="scanlines" aria-hidden="true"></div>
+      <Toast />
+      <div 
+        className="retro-container bg-white w-full max-w-md"
+        role="main"
+        aria-labelledby="signup-title"
+      >
         <div className="text-center mb-8">
-          <UserPlus className="w-12 h-12 mx-auto mb-4 text-gray-800" />
-          <h1 className="font-press-start text-xl text-gray-800">Crear Cuenta</h1>
+          <UserPlus className="w-12 h-12 mx-auto mb-4 text-gray-800" aria-hidden="true" />
+          <h1 
+            id="signup-title" 
+            className="font-press-start text-xl text-gray-800"
+          >
+            Crear Cuenta
+          </h1>
         </div>
 
-        {error && (
-          <div className="mb-4 p-4 text-sm text-red-700 bg-red-100 rounded-lg pixel-corners" role="alert">
-            {error}
-          </div>
-        )}
+        <form 
+          onSubmit={handleSubmit} 
+          className="space-y-6"
+          aria-label="Formulario de registro"
+          noValidate
+        >
+          <Input
+            type="email"
+            label="Correo electrónico"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            error={formErrors.email}
+            required
+            disabled={loading}
+            autoComplete="email"
+            autoFocus
+          />
 
-        {success && (
-          <div className="mb-4 p-4 text-sm text-green-700 bg-green-100 rounded-lg pixel-corners" role="alert">
-            {success}
-          </div>
-        )}
+          <Input
+            type="password"
+            label="Contraseña"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            error={formErrors.password}
+            helperText="Mínimo 6 caracteres"
+            required
+            disabled={loading}
+            autoComplete="new-password"
+          />
 
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <div>
-            <label htmlFor="email" className="block font-press-start text-xs text-gray-700 mb-2">
-              Correo electrónico
-            </label>
-            <input
-              type="email"
-              id="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="retro-input"
-              required
-              disabled={loading}
-            />
-          </div>
+          <Input
+            type="password"
+            label="Confirmar Contraseña"
+            value={confirmPassword}
+            onChange={(e) => setConfirmPassword(e.target.value)}
+            error={formErrors.confirmPassword}
+            required
+            disabled={loading}
+            autoComplete="new-password"
+          />
 
-          <div>
-            <label htmlFor="password" className="block font-press-start text-xs text-gray-700 mb-2">
-              Contraseña
-            </label>
-            <input
-              type="password"
-              id="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="retro-input"
-              required
-              disabled={loading}
-              minLength={6}
-            />
-            <p className="mt-1 text-xs text-gray-500 font-press-start">
-              Mínimo 6 caracteres
-            </p>
-          </div>
-
-          <div>
-            <label htmlFor="confirmPassword" className="block font-press-start text-xs text-gray-700 mb-2">
-              Confirmar Contraseña
-            </label>
-            <input
-              type="password"
-              id="confirmPassword"
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              className="retro-input"
-              required
-              disabled={loading}
-              minLength={6}
-            />
-          </div>
-
-          <button
+          <Button
             type="submit"
-            className="retro-button w-full justify-center"
+            className="w-full"
+            isLoading={loading}
             disabled={loading}
           >
-            {loading ? (
-              <span className="flex items-center justify-center">
-                <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-                Registrando...
-              </span>
-            ) : (
-              'Registrarse'
-            )}
-          </button>
+            Registrarse
+          </Button>
         </form>
 
         <p className="mt-6 text-center text-sm text-gray-600 font-press-start">
           ¿Ya tienes una cuenta?{' '}
-          <Link to="/login" className="text-gray-800 hover:text-gray-600">
+          <Link 
+            to="/login" 
+            className="text-gray-800 hover:text-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-800"
+          >
             Inicia Sesión
           </Link>
         </p>
       </div>
     </div>
-  )
+  );
 }

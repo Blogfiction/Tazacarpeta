@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext';
 import { Game, GameInput } from '../types/database';
 import { getGames, createGame, updateGame, deleteGame } from '../services/games';
 import Modal from '../components/Modal';
+import LoadingScreen from '../components/LoadingScreen';
 
 const ITEMS_PER_PAGE = 9;
 const CATEGORIAS = [
@@ -167,6 +168,17 @@ export default function GamesAdmin() {
     <div className="min-h-screen bg-[#FFFFE0]">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+                      <button
+              onClick={() => {
+                resetForm();
+                setIsModalOpen(true);
+              }}
+              className="retro-button inline-flex items-center whitespace-nowrap min-w-[140px] justify-center"
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              <span className="font-press-start text-xs">Nuevo Juego</span>
+            </button>
+
           <div className="flex-1 w-full sm:w-auto">
             <div className="relative">
               <input
@@ -183,23 +195,13 @@ export default function GamesAdmin() {
             <select
               value={selectedCategoria}
               onChange={(e) => setSelectedCategoria(e.target.value)}
-              className="retro-input"
+              className="retro-input flex-1 sm:flex-none"
             >
               <option value="">Todas las categorías</option>
               {CATEGORIAS.map(cat => (
                 <option key={cat} value={cat}>{cat}</option>
               ))}
             </select>
-            <button
-              onClick={() => {
-                resetForm();
-                setIsModalOpen(true);
-              }}
-              className="retro-button inline-flex items-center whitespace-nowrap"
-            >
-              <Plus className="h-4 w-4 mr-2" />
-              <span className="font-press-start text-xs sm:text-sm">Nuevo Juego</span>
-            </button>
           </div>
         </div>
 
@@ -218,9 +220,7 @@ export default function GamesAdmin() {
         )}
 
         {loading ? (
-          <div className="text-center py-12">
-            <div className="inline-block animate-spin rounded-full h-8 w-8 border-4 border-gray-800 border-r-transparent"></div>
-          </div>
+          <LoadingScreen />
         ) : (
           <>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

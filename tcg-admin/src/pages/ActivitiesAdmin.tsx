@@ -7,6 +7,7 @@ import { getActivities, createActivity, updateActivity, deleteActivity } from '.
 import { getGames } from '../services/games';
 import { getStores } from '../services/stores';
 import Modal from '../components/Modal';
+import LoadingScreen from '../components/LoadingScreen';
 
 export default function ActivitiesAdmin() {
   const { session } = useAuth();
@@ -138,9 +139,7 @@ export default function ActivitiesAdmin() {
         )}
 
         {loading ? (
-          <div className="text-center py-12">
-            <div className="inline-block animate-spin rounded-full h-8 w-8 border-4 border-gray-800 border-r-transparent"></div>
-          </div>
+          <LoadingScreen />
         ) : (
           <div className="bg-white shadow overflow-hidden sm:rounded-lg">
             <ul className="divide-y divide-gray-200">
