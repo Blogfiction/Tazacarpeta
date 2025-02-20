@@ -4,18 +4,62 @@ import { useState } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import Button from '../components/Button';
 import Input from '../components/Input';
+import Select from '../components/Select';
 import Toast from '../components/Toast';
 import toast from 'react-hot-toast';
 
+// Comunas de la Octava Región (Región del Biobío)
+const COMUNAS = [
+  'Alto Biobío',
+  'Antuco',
+  'Arauco',
+  'Cabrero',
+  'Cañete',
+  'Chiguayante',
+  'Concepción',
+  'Contulmo',
+  'Coronel',
+  'Curanilahue',
+  'Florida',
+  'Hualpén',
+  'Hualqui',
+  'Laja',
+  'Lebu',
+  'Los Álamos',
+  'Los Ángeles',
+  'Lota',
+  'Mulchén',
+  'Nacimiento',
+  'Negrete',
+  'Penco',
+  'Quilaco',
+  'Quilleco',
+  'San Pedro de la Paz',
+  'San Rosendo',
+  'Santa Bárbara',
+  'Santa Juana',
+  'Talcahuano',
+  'Tirúa',
+  'Tomé',
+  'Tucapel',
+  'Yumbel'
+].sort();
+
 export default function Signup() {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
+  const [formData, setFormData] = useState({
+    email: '',
+    password: '',
+    confirmPassword: '',
+    nombre: '',
+    comuna: ''
+  });
   const [loading, setLoading] = useState(false);
   const [formErrors, setFormErrors] = useState({
     email: '',
     password: '',
-    confirmPassword: ''
+    confirmPassword: '',
+    nombre: '',
+    comuna: ''
   });
   const navigate = useNavigate();
 
@@ -23,34 +67,43 @@ export default function Signup() {
     const errors = {
       email: '',
       password: '',
-      confirmPassword: ''
+      confirmPassword: '',
+      nombre: '',
+      comuna: ''
     };
     let isValid = true;
 
-    // Validación de email
-    if (!email) {
+    if (!formData.email) {
       errors.email = 'El correo electrónico es requerido';
       isValid = false;
-    } else if (!/\S+@\S+\.\S+/.test(email)) {
+    } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
       errors.email = 'Ingresa un correo electrónico válido';
       isValid = false;
     }
 
-    // Validación de contraseña
-    if (!password) {
+    if (!formData.password) {
       errors.password = 'La contraseña es requerida';
       isValid = false;
-    } else if (password.length < 6) {
+    } else if (formData.password.length < 6) {
       errors.password = 'La contraseña debe tener al menos 6 caracteres';
       isValid = false;
     }
 
-    // Validación de confirmación de contraseña
-    if (!confirmPassword) {
+    if (!formData.confirmPassword) {
       errors.confirmPassword = 'Confirma tu contraseña';
       isValid = false;
-    } else if (password !== confirmPassword) {
+    } else if (formData.password !== formData.confirmPassword) {
       errors.confirmPassword = 'Las contraseñas no coinciden';
+      isValid = false;
+    }
+
+    if (!formData.nombre) {
+      errors.nombre = 'El nombre es requerido';
+      isValid = false;
+    }
+
+    if (!formData.comuna) {
+      errors.comuna = 'La comuna es requerida';
       isValid = false;
     }
 
@@ -66,15 +119,26 @@ export default function Signup() {
     setLoading(true);
 
     try {
-      const { error, data } = await supabase.auth.signUp({
-        email,
-        password,
+      console.log('Iniciando registro de usuario con datos:', {
+        email: formData.email,
+        nombre: formData.nombre,
+        comuna: formData.comuna
+      });
+
+      const { data, error } = await supabase.auth.signUp({
+        email: formData.email.trim(),
+        password: formData.password.trim(),
         options: {
-          emailRedirectTo: window.location.origin + '/login'
+          data: {
+            nombre: formData.nombre.trim(),
+            comuna_region: formData.comuna
+          }
         }
       });
       
       if (error) {
+        console.error('Error de registro:', error);
+        
         switch (error.message) {
           case 'User already registered':
             toast.error('Este correo electrónico ya está registrado');
@@ -83,22 +147,39 @@ export default function Signup() {
             toast.error('La contraseña debe tener al menos 6 caracteres');
             break;
           case 'Database error saving new user':
-            toast.error('Error al crear el usuario. Por favor, intenta de nuevo más tarde');
+            console.error('Error detallado:', error);
+            toast.error('Error al crear el perfil de usuario. Por favor, intenta de nuevo');
             break;
           default:
-            toast.error(error.message);
+            console.error('Error no manejado:', error);
+            toast.error('Error al registrar usuario. Por favor, intenta de nuevo');
         }
       } else if (data.user) {
+        console.log('Usuario registrado exitosamente:', {
+          id: data.user.id,
+          email: data.user.email,
+          metadata: data.user.user_metadata
+        });
+        
         toast.success('Registro exitoso. Redirigiendo al login...');
         setTimeout(() => {
           navigate('/login');
         }, 2000);
       }
     } catch (err) {
-      toast.error('Error al conectar con el servidor');
+      console.error('Error inesperado durante el registro:', err);
+      toast.error('Error al conectar con el servidor. Por favor, intenta de nuevo más tarde');
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
   };
 
   return (
@@ -128,9 +209,10 @@ export default function Signup() {
         >
           <Input
             type="email"
+            name="email"
             label="Correo electrónico"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
+            value={formData.email}
+            onChange={handleChange}
             error={formErrors.email}
             required
             disabled={loading}
@@ -139,10 +221,40 @@ export default function Signup() {
           />
 
           <Input
+            type="text"
+            name="nombre"
+            label="Nombre"
+            value={formData.nombre}
+            onChange={handleChange}
+            error={formErrors.nombre}
+            required
+            disabled={loading}
+            autoComplete="name"
+          />
+
+          <Select
+            name="comuna"
+            label="Comuna"
+            value={formData.comuna}
+            onChange={handleChange}
+            error={formErrors.comuna}
+            options={[
+              { value: '', label: 'Selecciona una comuna' },
+              ...COMUNAS.map(comuna => ({
+                value: comuna,
+                label: comuna
+              }))
+            ]}
+            required
+            disabled={loading}
+          />
+
+          <Input
             type="password"
+            name="password"
             label="Contraseña"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
+            value={formData.password}
+            onChange={handleChange}
             error={formErrors.password}
             helperText="Mínimo 6 caracteres"
             required
@@ -152,9 +264,10 @@ export default function Signup() {
 
           <Input
             type="password"
+            name="confirmPassword"
             label="Confirmar Contraseña"
-            value={confirmPassword}
-            onChange={(e) => setConfirmPassword(e.target.value)}
+            value={formData.confirmPassword}
+            onChange={handleChange}
             error={formErrors.confirmPassword}
             required
             disabled={loading}

@@ -1,20 +1,21 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Edit2, Trash2, Calendar, MapPin, Link as LinkIcon, TowerControl as GameController } from 'lucide-react';
+import { Plus, Edit2, Trash2, Calendar, MapPin, Link as LinkIcon, Store, TowerControl as GameController } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { Activity, ActivityInput, Game, Store } from '../types/database';
+import { Activity, ActivityInput, Game, Store as StoreType } from '../types/database';
 import { getActivities, createActivity, updateActivity, deleteActivity } from '../services/activities';
 import { getGames } from '../services/games';
 import { getStores } from '../services/stores';
 import Modal from '../components/Modal';
 import LoadingScreen from '../components/LoadingScreen';
+import PlacesAutocomplete from '../components/PlacesAutocomplete';
 
 export default function ActivitiesAdmin() {
   const { session } = useAuth();
   const navigate = useNavigate();
   const [activities, setActivities] = useState<Activity[]>([]);
   const [games, setGames] = useState<Game[]>([]);
-  const [stores, setStores] = useState<Store[]>([]);
+  const [stores, setStores] = useState<StoreType[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -25,7 +26,10 @@ export default function ActivitiesAdmin() {
     ubicacion: '',
     enlace_referencia: '',
     id_juego: undefined,
-    id_tienda: undefined
+    id_tienda: undefined,
+    place_id: undefined,
+    lat: undefined,
+    lng: undefined
   });
 
   useEffect(() => {
@@ -71,14 +75,15 @@ export default function ActivitiesAdmin() {
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm('¿Estás seguro de que deseas eliminar esta actividad?')) return;
-    
-    try {
-      await deleteActivity(id);
-      loadData();
-    } catch (err) {
-      setError('Error al eliminar la actividad');
+  const handlePlaceSelect = (place: google.maps.places.PlaceResult) => {
+    if (place.formatted_address && place.place_id) {
+      setFormData({
+        ...formData,
+        ubicacion: place.formatted_address,
+        place_id: place.place_id,
+        lat: place.geometry?.location?.lat(),
+        lng: place.geometry?.location?.lng()
+      });
     }
   };
 
@@ -90,7 +95,10 @@ export default function ActivitiesAdmin() {
       ubicacion: activity.ubicacion,
       enlace_referencia: activity.enlace_referencia || '',
       id_tienda: activity.id_tienda || undefined,
-      id_juego: activity.id_juego || undefined
+      id_juego: activity.id_juego || undefined,
+      place_id: activity.place_id,
+      lat: activity.lat,
+      lng: activity.lng
     });
     setIsModalOpen(true);
   };
@@ -103,7 +111,10 @@ export default function ActivitiesAdmin() {
       ubicacion: '',
       enlace_referencia: '',
       id_juego: undefined,
-      id_tienda: undefined
+      id_tienda: undefined,
+      place_id: undefined,
+      lat: undefined,
+      lng: undefined
     });
   };
 
@@ -112,6 +123,17 @@ export default function ActivitiesAdmin() {
       return false;
     }
     return true;
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!confirm('¿Estás seguro de que deseas eliminar esta actividad?')) return;
+    
+    try {
+      await deleteActivity(id);
+      loadData();
+    } catch (err) {
+      setError('Error al eliminar la actividad');
+    }
   };
 
   if (!session) return null;
@@ -171,14 +193,19 @@ export default function ActivitiesAdmin() {
                           )}
                           {store && (
                             <div className="mt-2 flex items-center text-sm text-green-600">
-                              <MapPin className="flex-shrink-0 mr-1.5 h-4 w-4" />
+                              <Store className="flex-shrink-0 mr-1.5 h-4 w-4" />
                               {store.nombre}
                             </div>
                           )}
                           {activity.enlace_referencia && (
                             <div className="mt-2 flex items-center text-sm text-blue-600">
                               <LinkIcon className="flex-shrink-0 mr-1.5 h-4 w-4" />
-                              <a href={activity.enlace_referencia} target="_blank" rel="noopener noreferrer">
+                              <a
+                                href={activity.enlace_referencia}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="truncate hover:underline"
+                              >
                                 Enlace de referencia
                               </a>
                             </div>
@@ -247,13 +274,9 @@ export default function ActivitiesAdmin() {
               <label className="block font-press-start text-xs text-gray-700 mb-2">
                 Ubicación
               </label>
-              <input
-                type="text"
-                required
-                value={formData.ubicacion}
-                onChange={(e) => setFormData({ ...formData, ubicacion: e.target.value })}
-                className="retro-input"
-                placeholder="Ubicación de la actividad"
+              <PlacesAutocomplete
+                onPlaceSelect={handlePlaceSelect}
+                defaultValue={formData.ubicacion}
               />
             </div>
 

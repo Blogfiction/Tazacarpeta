@@ -8,6 +8,7 @@ import { getGames } from '../services/games';
 import { addGameToStore, removeGameFromStore, getStoreGames, updateStoreGame } from '../services/games';
 import Modal from '../components/Modal';
 import LoadingScreen from '../components/LoadingScreen';
+import PlacesAutocomplete from '../components/PlacesAutocomplete';
 
 const DIAS_SEMANA = ['lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado', 'domingo'];
 const PLANES = ['básico', 'premium', 'enterprise'];
@@ -42,7 +43,10 @@ export default function StoresAdmin() {
       numero: '',
       ciudad: '',
       estado: '',
-      cp: ''
+      cp: '',
+      place_id: undefined,
+      lat: undefined,
+      lng: undefined
     },
     horario: HORARIO_INICIAL,
     plan: 'básico'
@@ -114,6 +118,47 @@ export default function StoresAdmin() {
       resetForm();
     } catch (err) {
       setError('Error al guardar la tienda');
+    }
+  };
+
+  const handlePlaceSelect = (place: google.maps.places.PlaceResult) => {
+    if (place.formatted_address) {
+      // Extraer componentes de la dirección
+      const addressComponents = place.address_components || [];
+      let streetNumber = '';
+      let route = '';
+      let locality = '';
+      let region = '';
+      let postalCode = '';
+
+      addressComponents.forEach(component => {
+        const types = component.types;
+        if (types.includes('street_number')) {
+          streetNumber = component.long_name;
+        } else if (types.includes('route')) {
+          route = component.long_name;
+        } else if (types.includes('locality')) {
+          locality = component.long_name;
+        } else if (types.includes('administrative_area_level_1')) {
+          region = component.long_name;
+        } else if (types.includes('postal_code')) {
+          postalCode = component.long_name;
+        }
+      });
+
+      setFormData({
+        ...formData,
+        direccion: {
+          calle: route,
+          numero: streetNumber,
+          ciudad: locality,
+          estado: region,
+          cp: postalCode,
+          place_id: place.place_id,
+          lat: place.geometry?.location?.lat(),
+          lng: place.geometry?.location?.lng()
+        }
+      });
     }
   };
 
@@ -190,7 +235,10 @@ export default function StoresAdmin() {
         numero: '',
         ciudad: '',
         estado: '',
-        cp: ''
+        cp: '',
+        place_id: undefined,
+        lat: undefined,
+        lng: undefined
       },
       horario: HORARIO_INICIAL,
       plan: 'básico'
@@ -410,6 +458,15 @@ export default function StoresAdmin() {
 
             <div className="space-y-4">
               <h3 className="font-medium text-gray-900 text-sm">Dirección</h3>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Buscar dirección
+                </label>
+                <PlacesAutocomplete
+                  onPlaceSelect={handlePlaceSelect}
+                  defaultValue={`${formData.direccion.calle} ${formData.direccion.numero}, ${formData.direccion.ciudad}`}
+                />
+              </div>
               <div className="grid grid-cols-1 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">

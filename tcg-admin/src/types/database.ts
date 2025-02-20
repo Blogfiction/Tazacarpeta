@@ -37,6 +37,9 @@ export interface Activity {
   enlace_referencia: string | null;
   created_at: string;
   updated_at: string;
+  place_id?: string;
+  lat?: number;
+  lng?: number;
 }
 
 export interface ActivityInput {
@@ -46,6 +49,9 @@ export interface ActivityInput {
   fecha: string;
   ubicacion: string;
   enlace_referencia?: string;
+  place_id?: string;
+  lat?: number;
+  lng?: number;
 }
 
 export interface Direccion {
@@ -54,6 +60,9 @@ export interface Direccion {
   ciudad: string;
   estado: string;
   cp: string;
+  place_id?: string;
+  lat?: number;
+  lng?: number;
 }
 
 export interface HorarioTienda {
