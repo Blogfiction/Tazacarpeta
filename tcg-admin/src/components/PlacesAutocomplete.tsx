@@ -1,4 +1,4 @@
-import { useRef, useEffect, useState } from 'react';
+import { useRef, useEffect, useState, useCallback } from 'react';
 import { Autocomplete } from '@react-google-maps/api';
 import { Search } from 'lucide-react';
 
@@ -16,43 +16,60 @@ export default function PlacesAutocomplete({
   const autocompleteRef = useRef<google.maps.places.Autocomplete | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const [inputValue, setInputValue] = useState(defaultValue);
+  
+  // Memoizar el handler del click outside para poder limpiarlo correctamente
+  const handleClickOutside = useCallback((event: MouseEvent) => {
+    if (inputRef.current && !inputRef.current.contains(event.target as Node)) {
+      // Solo cerramos el menú, no disparamos 'place_changed' que puede causar problemas
+      // con el estado del formulario
+      if (autocompleteRef.current) {
+        // No hacemos nada aquí, solo cerramos el menú
+      }
+    }
+  }, []);
 
+  // Manejar la actualización del defaultValue cuando cambia
   useEffect(() => {
-    // Limpiar el autocomplete cuando el componente se desmonta
+    if (defaultValue !== inputValue) {
+      setInputValue(defaultValue);
+    }
+  }, [defaultValue]);
+
+  // Configurar y limpiar listeners
+  useEffect(() => {
+    // Registrar el listener para clicks fuera
+    document.addEventListener('click', handleClickOutside);
+    
+    // Limpiar al desmontar
     return () => {
+      document.removeEventListener('click', handleClickOutside);
       if (autocompleteRef.current) {
         google.maps.event.clearInstanceListeners(autocompleteRef.current);
         autocompleteRef.current = null;
       }
     };
-  }, []);
-
-  useEffect(() => {
-    setInputValue(defaultValue);
-  }, [defaultValue]);
+  }, [handleClickOutside]);
 
   const onLoad = (autocomplete: google.maps.places.Autocomplete) => {
     autocompleteRef.current = autocomplete;
-    
-    // Agregar listener para cerrar el menú cuando se hace click fuera
-    document.addEventListener('click', handleClickOutside);
-  };
-
-  const handleClickOutside = (event: MouseEvent) => {
-    if (inputRef.current && !inputRef.current.contains(event.target as Node)) {
-      // Cerrar el menú de autocompletado
-      if (autocompleteRef.current) {
-        google.maps.event.trigger(autocompleteRef.current, 'place_changed');
-      }
-    }
   };
 
   const onPlaceChanged = () => {
     if (autocompleteRef.current) {
-      const place = autocompleteRef.current.getPlace();
-      if (place && place.formatted_address) {
-        setInputValue(place.formatted_address);
-        onPlaceSelect(place);
+      try {
+        const place = autocompleteRef.current.getPlace();
+        // Verificar que tenemos un lugar válido con toda la información necesaria
+        if (place && place.formatted_address && place.place_id) {
+          setInputValue(place.formatted_address);
+          // Solo notificamos al componente padre si el lugar es válido
+          onPlaceSelect(place);
+        } else if (!place || !place.formatted_address) {
+          // Si el usuario presiona Enter sin seleccionar una dirección del dropdown,
+          // no hacemos nada para evitar perder el estado del formulario
+          console.log('Ubicación incompleta o inválida');
+        }
+      } catch (error) {
+        console.error('Error al obtener el lugar:', error);
       }
     }
   };
@@ -62,7 +79,11 @@ export default function PlacesAutocomplete({
   };
 
   return (
-    <div className="relative">
+    <div 
+      className="relative"
+      // Evitar que clics dentro del componente se propaguen al modal
+      onClick={(e) => e.stopPropagation()}
+    >
       <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400 pointer-events-none" />
       <Autocomplete
         onLoad={onLoad}
@@ -82,6 +103,9 @@ export default function PlacesAutocomplete({
           onChange={handleInputChange}
           className={`retro-input pl-10 ${className}`}
           placeholder="Buscar ubicación..."
+          autoComplete="off" // Prevenir que el navegador muestre su propio autocompletado
+          // Asegurarse de que el clic en el input no cierre nada
+          onClick={(e) => e.stopPropagation()}
         />
       </Autocomplete>
     </div>

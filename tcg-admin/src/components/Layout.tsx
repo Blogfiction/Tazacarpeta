@@ -4,6 +4,7 @@ import Navbar from './Navbar';
 import Toast from './Toast';
 import LoadingScreen from './LoadingScreen';
 import ScrollToTop from './ScrollToTop';
+import Footer from './Footer';
 
 interface LayoutProps {
   children: ReactNode;
@@ -35,6 +36,7 @@ export default function Layout({ children }: LayoutProps) {
           {children}
         </main>
       </div>
+      <Footer />
     </div>
   );
 }

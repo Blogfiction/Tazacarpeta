@@ -1,5 +1,6 @@
 import { Car as Cards } from 'lucide-react'
 import { Link } from 'react-router-dom'
+import Footer from '../components/Footer'
 
 export default function Home() {
   return (

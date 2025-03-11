@@ -1,13 +1,16 @@
 import { LogIn } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
-import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../context/AuthContext';
 import toast from 'react-hot-toast';
 import Button from '../components/Button';
 import Input from '../components/Input';
 import Tooltip from '../components/Tooltip';
 import Toast from '../components/Toast';
+import Footer from '../components/Footer';
+import AuthService from '../services/auth';
+import { SecurityService, SecurityEventType } from '../services/security';
+import { validate } from '../lib/validation';
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -26,23 +29,28 @@ export default function Login() {
     }
   }, [session, navigate]);
 
-  const validateForm = () => {
+  const validateForm = (): boolean => {
     const errors = {
       email: '',
       password: ''
     };
     let isValid = true;
 
+    // Validar email con nuestra utilidad de validación
     if (!email) {
       errors.email = 'El correo electrónico es requerido';
       isValid = false;
-    } else if (!/\S+@\S+\.\S+/.test(email)) {
+    } else if (!validate.email(email)) {
       errors.email = 'Ingresa un correo electrónico válido';
       isValid = false;
     }
 
+    // Validar password
     if (!password) {
       errors.password = 'La contraseña es requerida';
+      isValid = false;
+    } else if (!validate.length(password, 6)) {
+      errors.password = 'La contraseña debe tener al menos 6 caracteres';
       isValid = false;
     }
 
@@ -58,29 +66,46 @@ export default function Login() {
     setLoading(true);
 
     try {
-      const { error: signInError } = await supabase.auth.signInWithPassword({
-        email: email.trim(),
+      // Sanitizar entradas para prevenir inyecciones
+      const sanitizedEmail = validate.sanitize(email.trim());
+      
+      // Usar el nuevo servicio de autenticación
+      const response = await AuthService.login({
+        email: sanitizedEmail,
         password: password.trim()
       });
 
-      if (signInError) {
-        switch (signInError.message) {
-          case 'Invalid login credentials':
-            toast.error('Correo electrónico o contraseña incorrectos');
-            break;
-          case 'Email not confirmed':
-            toast.error('Por favor, confirma tu correo electrónico');
-            break;
-          default:
-            toast.error('Error al iniciar sesión. Por favor, intenta de nuevo.');
-        }
-        console.error('Auth error:', signInError);
-      } else {
+      if (response.error) {
+        // La mayoría de los errores ya son manejados por el servicio
+        // pero podemos manejar casos específicos adicionales aquí
+        toast.error('Credenciales inválidas');
+        
+        // Registrar intento fallido de inicio de sesión
+        await SecurityService.logLoginFailure(
+          sanitizedEmail, 
+          response.error.message
+        );
+      } else if (response.data.session) {
         toast.success('¡Bienvenido de vuelta!');
+        
+        // Registrar inicio de sesión exitoso
+        if (response.data.user) {
+          await SecurityService.logLoginSuccess(response.data.user.id);
+        }
+        
+        // La redirección se maneja automáticamente por el hook useAuth
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('Login error:', err);
-      toast.error('Error al conectar con el servidor');
+      
+      // Mostrar mensaje de error amigable sin detalles técnicos
+      toast.error(err.message || 'Error al conectar con el servidor');
+      
+      // Registrar error
+      await SecurityService.logLoginFailure(
+        email, 
+        err.message || 'Error desconocido'
+      );
     } finally {
       setLoading(false);
     }

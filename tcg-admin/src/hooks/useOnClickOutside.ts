@@ -9,6 +9,19 @@ export function useOnClickOutside(
       if (!ref.current || ref.current.contains(event.target as Node)) {
         return;
       }
+
+      const targetElement = event.target as HTMLElement;
+      const isGoogleMapsElement = 
+        targetElement.classList?.contains('pac-container') || 
+        targetElement.classList?.contains('pac-item') ||
+        targetElement.closest('.pac-container') !== null ||
+        targetElement.closest('.pac-item') !== null ||
+        targetElement.closest('iframe[src*="google.com/maps"]') !== null;
+
+      if (isGoogleMapsElement) {
+        return;
+      }
+
       handler(event);
     };
 

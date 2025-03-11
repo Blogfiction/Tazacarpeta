@@ -114,6 +114,216 @@
            text-lg sm:text-xl lg:text-2xl;
   }
 
+  /* Estilos para tarjetas de eventos */
+  .event-card {
+    @apply relative border-4 border-gray-800 bg-white p-4 transition-all duration-200;
+    box-shadow: 4px 4px 0px rgba(0, 0, 0, 0.2);
+  }
+
+  .event-card:hover {
+    transform: translate(2px, 2px);
+    box-shadow: 2px 2px 0px rgba(0, 0, 0, 0.2);
+  }
+
+  .event-card.past-event {
+    @apply border-gray-400 bg-gray-50;
+    box-shadow: 3px 3px 0px rgba(0, 0, 0, 0.1);
+    opacity: 0.85;
+  }
+
+  .event-card.past-event:hover {
+    opacity: 1;
+  }
+
+  .event-title {
+    @apply font-['Press_Start_2P'] text-base text-gray-800 mb-3 truncate;
+  }
+
+  .past-event .event-title {
+    @apply text-gray-600;
+  }
+
+  .event-detail {
+    @apply flex items-center mb-2 text-sm;
+  }
+
+  .event-detail-icon {
+    @apply flex-shrink-0 mr-2 h-5 w-5;
+  }
+
+  .event-detail-text {
+    @apply text-gray-700;
+  }
+
+  .past-event .event-detail-text {
+    @apply text-gray-500;
+  }
+
+  .event-tag {
+    @apply inline-flex items-center px-2.5 py-1 rounded border-2 
+           text-xs font-['Press_Start_2P'] mr-2 mb-2;
+  }
+
+  .event-tag.game-tag {
+    @apply border-blue-500 bg-blue-100 text-blue-700;
+  }
+
+  .past-event .event-tag.game-tag {
+    @apply border-blue-300 bg-blue-50 text-blue-500;
+  }
+
+  .event-tag.store-tag {
+    @apply border-green-500 bg-green-100 text-green-700;
+  }
+
+  .past-event .event-tag.store-tag {
+    @apply border-green-300 bg-green-50 text-green-500;
+  }
+
+  .event-today-badge {
+    @apply absolute top-0 right-0 -mt-2 -mr-2 px-2 py-1 
+           bg-yellow-300 border-2 border-gray-800 
+           text-xs font-['Press_Start_2P'] text-gray-800;
+    box-shadow: 2px 2px 0px rgba(0, 0, 0, 0.2);
+  }
+
+  .event-actions {
+    @apply flex space-x-1 mt-3;
+  }
+
+  .event-action-button {
+    @apply p-2 rounded border-2 border-gray-800 transition-all;
+    box-shadow: 2px 2px 0px rgba(0, 0, 0, 0.2);
+  }
+
+  .event-action-button:hover {
+    transform: translate(1px, 1px);
+    box-shadow: 1px 1px 0px rgba(0, 0, 0, 0.2);
+  }
+
+  .event-action-button.edit {
+    @apply bg-blue-100 text-blue-700 border-blue-500;
+  }
+
+  .event-action-button.delete {
+    @apply bg-red-100 text-red-700 border-red-500;
+  }
+
+  .past-event .event-action-button {
+    @apply opacity-70;
+  }
+
+  .past-event .event-action-button:hover {
+    @apply opacity-100;
+  }
+
+  /* Estilos para tiendas */
+  .store-card {
+    @apply relative border-4 border-gray-800 bg-white p-4 transition-all duration-200 mb-6;
+    box-shadow: 4px 4px 0px rgba(0, 0, 0, 0.2);
+  }
+
+  .store-card:hover {
+    transform: translate(2px, 2px);
+    box-shadow: 2px 2px 0px rgba(0, 0, 0, 0.2);
+  }
+
+  .store-title {
+    @apply font-['Press_Start_2P'] text-base text-gray-800 mb-3 truncate;
+  }
+
+  .store-detail {
+    @apply flex items-center mb-2 text-sm;
+  }
+
+  .store-detail-icon {
+    @apply flex-shrink-0 mr-2 h-5 w-5;
+  }
+
+  .store-detail-text {
+    @apply text-gray-700;
+  }
+
+  .store-plan-badge {
+    @apply inline-flex items-center px-3 py-1 my-2
+           text-xs font-['Press_Start_2P'] 
+           border-2 border-gray-800;
+  }
+
+  .store-plan-badge.basic {
+    @apply bg-gray-100 text-gray-800;
+  }
+
+  .store-plan-badge.premium {
+    @apply bg-blue-100 text-blue-800 border-blue-500;
+  }
+
+  .store-plan-badge.enterprise {
+    @apply bg-yellow-100 text-yellow-800 border-yellow-500;
+  }
+
+  .store-hours {
+    @apply mt-3 pt-3 border-t-2 border-gray-200;
+  }
+
+  .store-hours-title {
+    @apply font-['Press_Start_2P'] text-xs text-gray-600 mb-2;
+  }
+
+  .store-hours-grid {
+    @apply grid grid-cols-2 gap-2;
+  }
+
+  .store-day {
+    @apply text-xs text-gray-700;
+  }
+
+  .store-actions {
+    @apply flex space-x-2 mt-4 pt-3 border-t-2 border-gray-200;
+  }
+
+  .store-action-button {
+    @apply p-2 rounded border-2 border-gray-800 transition-all flex items-center;
+    box-shadow: 2px 2px 0px rgba(0, 0, 0, 0.2);
+  }
+
+  .store-action-button:hover {
+    transform: translate(1px, 1px);
+    box-shadow: 1px 1px 0px rgba(0, 0, 0, 0.2);
+  }
+
+  .store-action-button.edit {
+    @apply bg-blue-100 text-blue-700 border-blue-500;
+  }
+
+  .store-action-button.delete {
+    @apply bg-red-100 text-red-700 border-red-500;
+  }
+
+  .store-action-button.games {
+    @apply bg-purple-100 text-purple-700 border-purple-500 flex-1 justify-center;
+  }
+
+  .store-games-list {
+    @apply mt-3 pt-2 border-t-2 border-gray-200;
+  }
+
+  .store-game-item {
+    @apply flex justify-between items-center p-2 mb-2 bg-gray-50 rounded border-2 border-gray-300;
+  }
+
+  .store-game-name {
+    @apply text-sm font-['Press_Start_2P'] text-gray-800;
+  }
+
+  .store-game-details {
+    @apply flex text-xs text-gray-600 space-x-4;
+  }
+
+  .store-game-detail {
+    @apply flex items-center;
+  }
+
   /* Modal styles */
   .modal-backdrop {
     @apply fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm transition-opacity;

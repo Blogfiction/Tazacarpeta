@@ -15,46 +15,72 @@ interface EventListProps {
 export default function EventList({ events, onEventClick }: EventListProps) {
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
-    return new Intl.DateTimeFormat('es', {
-      weekday: 'long',
+    return new Intl.DateTimeFormat('es-CL', {
+      day: '2-digit',
+      month: '2-digit',
       year: 'numeric',
-      month: 'long',
-      day: 'numeric',
       hour: '2-digit',
       minute: '2-digit'
     }).format(date);
   };
 
+  // Determinar si un evento es hoy
+  const isToday = (dateString: string) => {
+    const eventDate = new Date(dateString);
+    const today = new Date();
+    
+    return (
+      eventDate.getDate() === today.getDate() &&
+      eventDate.getMonth() === today.getMonth() &&
+      eventDate.getFullYear() === today.getFullYear()
+    );
+  };
+
+  // Determinar si un evento ya pasó
+  const isPastEvent = (dateString: string) => {
+    const eventDate = new Date(dateString);
+    const now = new Date();
+    return eventDate < now;
+  };
+
   return (
     <div className="space-y-4">
-      {events.map(event => (
-        <div
-          key={event.id_actividad}
-          onClick={() => onEventClick(event)}
-          className="retro-container bg-white hover:translate-x-1 hover:translate-y-1 transition-transform cursor-pointer"
-        >
-          <div className="flex items-start justify-between">
-            <div className="flex-1">
-              <h3 className="font-press-start text-sm text-gray-800">{event.nombre}</h3>
-              <div className="mt-4 space-y-2">
-                <div className="flex items-center text-gray-600">
-                  <Calendar className="w-4 h-4 mr-2" />
-                  <span className="text-xs">{formatDate(event.fecha)}</span>
-                </div>
-                <div className="flex items-center text-gray-600">
-                  <MapPin className="w-4 h-4 mr-2" />
-                  <span className="text-xs">{event.ubicacion}</span>
-                </div>
+      {events.map(event => {
+        const eventIsToday = isToday(event.fecha);
+        const eventIsPast = isPastEvent(event.fecha);
+        
+        return (
+          <div
+            key={event.id_actividad}
+            onClick={() => onEventClick(event)}
+            className={`event-card ${eventIsPast ? 'past-event' : ''} cursor-pointer`}
+          >
+            {eventIsToday && !eventIsPast && (
+              <div className="event-today-badge">
+                HOY
               </div>
+            )}
+            
+            <h3 className="event-title">
+              {event.nombre}
+            </h3>
+            
+            <div className="event-detail">
+              <Calendar className="event-detail-icon text-yellow-600" />
+              <span className="event-detail-text">
+                {formatDate(event.fecha)}
+              </span>
             </div>
-            <div className="ml-4">
-              <span className="inline-flex items-center px-2.5 py-0.5 font-press-start text-[10px] bg-gray-800 text-yellow-200">
-                Próximo
+            
+            <div className="event-detail">
+              <MapPin className="event-detail-icon text-red-600" />
+              <span className="event-detail-text">
+                {event.ubicacion}
               </span>
             </div>
           </div>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 }

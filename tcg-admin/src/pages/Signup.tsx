@@ -6,6 +6,7 @@ import Button from '../components/Button';
 import Input from '../components/Input';
 import Select from '../components/Select';
 import Toast from '../components/Toast';
+import Footer from '../components/Footer';
 import toast from 'react-hot-toast';
 
 // Comunas de la Octava Región (Región del Biobío)

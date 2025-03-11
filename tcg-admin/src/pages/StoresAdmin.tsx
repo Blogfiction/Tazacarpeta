@@ -1,6 +1,10 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Edit2, Trash2, MapPin, Clock, TowerControl as GameController } from 'lucide-react';
+import { 
+  Plus, Edit2, Trash2, MapPin, Clock, TowerControl as GameController, 
+  Package, DollarSign, Coins, ChevronDown, ChevronUp, ShoppingBag, AlertCircle,
+  Link as LinkIcon
+} from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { Store, StoreInput, Direccion, HorarioTienda, Game, StoreGameInput } from '../types/database';
 import { getStores, createStore, updateStore, deleteStore } from '../services/stores';
@@ -24,12 +28,141 @@ interface StoreGameFormData {
   precio: number;
 }
 
+function renderStoreItem(
+  store: Store, 
+  storeGames: Map<string, StoreGameFormData>,
+  games: Game[],
+  openEditModal: (store: Store) => void,
+  openGameModal: (store: Store) => void,
+  handleDelete: (id: string) => void,
+  handleRemoveGame: (gameId: string) => void,
+) {
+  const dayHours = store.horario.lunes;
+  
+  const fullAddress = `${store.direccion.calle} ${store.direccion.numero}, ${store.direccion.ciudad}, ${store.direccion.estado} CP ${store.direccion.cp}`;
+  
+  const storeGamesList = Array.from(storeGames.entries()).map(([gameId, gameData]) => {
+    const gameInfo = games.find(g => g.id_juego === gameId);
+    return {
+      id: gameId,
+      nombre: gameInfo?.nombre || 'Juego desconocido',
+      stock: gameData.stock,
+      precio: gameData.precio
+    };
+  });
+  
+  const getPlanBadgeClass = (plan: string) => {
+    switch(plan.toLowerCase()) {
+      case 'premium': return 'premium';
+      case 'enterprise': return 'enterprise';
+      default: return 'basic';
+    }
+  };
+  
+  return (
+    <li key={store.id_tienda} className="mb-6">
+      <div className="store-card">
+        <h3 className="store-title">
+          {store.nombre}
+        </h3>
+        
+        <div className="store-detail">
+          <MapPin className="store-detail-icon text-red-600" />
+          <a 
+            href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(fullAddress)}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="store-detail-text hover:text-blue-600 transition-colors flex items-center"
+          >
+            {fullAddress}
+            <LinkIcon className="w-3 h-3 ml-1 inline" />
+          </a>
+        </div>
+        
+        <div className="store-hours">
+          <h4 className="store-hours-title">HORARIO DE ATENCIÓN</h4>
+          <div className="store-hours-grid">
+            {DIAS_SEMANA.map(dia => (
+              <div key={dia} className="store-day">
+                <strong className="capitalize">{dia}:</strong> {store.horario[dia].apertura} - {store.horario[dia].cierre}
+              </div>
+            ))}
+          </div>
+        </div>
+        
+        <div className={`store-plan-badge ${getPlanBadgeClass(store.plan)}`}>
+          <Coins className="h-3 w-3 mr-1" />
+          Plan {store.plan}
+        </div>
+        
+        {storeGamesList.length > 0 && (
+          <div className="store-games-list">
+            <h4 className="store-hours-title mb-3">
+              <GameController className="h-3 w-3 mr-1 inline" />
+              INVENTARIO ({storeGamesList.length} juegos)
+            </h4>
+            
+            {storeGamesList.slice(0, 3).map(game => (
+              <div key={game.id} className="store-game-item">
+                <div className="store-game-name">{game.nombre}</div>
+                <div className="store-game-details">
+                  <div className="store-game-detail">
+                    <Package className="h-3 w-3 mr-1" />
+                    {game.stock}
+                  </div>
+                  <div className="store-game-detail">
+                    <DollarSign className="h-3 w-3 mr-1" />
+                    ${game.precio}
+                  </div>
+                </div>
+              </div>
+            ))}
+            
+            {storeGamesList.length > 3 && (
+              <div className="text-center text-xs text-gray-500 mt-2">
+                Y {storeGamesList.length - 3} juegos más...
+              </div>
+            )}
+          </div>
+        )}
+        
+        <div className="store-actions">
+          <button
+            onClick={() => openGameModal(store)}
+            className="store-action-button games"
+          >
+            <GameController className="h-4 w-4 mr-2" />
+            <span className="font-['Press_Start_2P'] text-xs">Gestionar Juegos</span>
+          </button>
+          
+          <button
+            onClick={() => openEditModal(store)}
+            className="store-action-button edit"
+            aria-label="Editar tienda"
+          >
+            <Edit2 className="h-4 w-4" />
+          </button>
+          
+          <button
+            onClick={() => handleDelete(store.id_tienda)}
+            className="store-action-button delete"
+            aria-label="Eliminar tienda"
+          >
+            <Trash2 className="h-4 w-4" />
+          </button>
+        </div>
+      </div>
+    </li>
+  );
+}
+
 export default function StoresAdmin() {
   const { session } = useAuth();
   const navigate = useNavigate();
   const [stores, setStores] = useState<Store[]>([]);
   const [games, setGames] = useState<Game[]>([]);
   const [storeGames, setStoreGames] = useState<Map<string, StoreGameFormData>>(new Map());
+  const [storeGamesMap, setStoreGamesMap] = useState<Map<string, Map<string, StoreGameFormData>>>(new Map());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -70,6 +203,31 @@ export default function StoresAdmin() {
     try {
       const data = await getStores();
       setStores(data);
+      
+      // Después de cargar las tiendas, cargamos los juegos de cada una
+      const gamesMap = new Map<string, Map<string, StoreGameFormData>>();
+      
+      // Promise.all para cargar los juegos de todas las tiendas en paralelo
+      await Promise.all(data.map(async (store) => {
+        try {
+          const storeGamesData = await getStoreGames(store.id_tienda);
+          const gamesMapForStore = new Map<string, StoreGameFormData>();
+          
+          storeGamesData.forEach(sg => {
+            gamesMapForStore.set(sg.id_juego, {
+              id_juego: sg.id_juego,
+              stock: sg.stock,
+              precio: sg.precio
+            });
+          });
+          
+          gamesMap.set(store.id_tienda, gamesMapForStore);
+        } catch (err) {
+          console.error(`Error loading games for store ${store.id_tienda}:`, err);
+        }
+      }));
+      
+      setStoreGamesMap(gamesMap);
     } catch (err) {
       setError('Error al cargar las tiendas');
     } finally {
@@ -98,6 +256,11 @@ export default function StoresAdmin() {
         });
       });
       setStoreGames(gamesMap);
+      
+      // También actualizamos el mapa global
+      const updatedMap = new Map(storeGamesMap);
+      updatedMap.set(storeId, gamesMap);
+      setStoreGamesMap(updatedMap);
     } catch (err) {
       setError('Error al cargar los juegos de la tienda');
     }
@@ -123,7 +286,8 @@ export default function StoresAdmin() {
 
   const handlePlaceSelect = (place: google.maps.places.PlaceResult) => {
     if (place.formatted_address) {
-      // Extraer componentes de la dirección
+      const updatedFormData = JSON.parse(JSON.stringify(formData));
+      
       const addressComponents = place.address_components || [];
       let streetNumber = '';
       let route = '';
@@ -146,19 +310,22 @@ export default function StoresAdmin() {
         }
       });
 
-      setFormData({
-        ...formData,
-        direccion: {
-          calle: route,
-          numero: streetNumber,
-          ciudad: locality,
-          estado: region,
-          cp: postalCode,
-          place_id: place.place_id,
-          lat: place.geometry?.location?.lat(),
-          lng: place.geometry?.location?.lng()
-        }
-      });
+      updatedFormData.direccion = {
+        ...updatedFormData.direccion,
+        calle: route || updatedFormData.direccion.calle,
+        numero: streetNumber || updatedFormData.direccion.numero,
+        ciudad: locality || updatedFormData.direccion.ciudad,
+        estado: region || updatedFormData.direccion.estado,
+        cp: postalCode || updatedFormData.direccion.cp,
+        place_id: place.place_id,
+      };
+      
+      if (place.geometry && place.geometry.location) {
+        updatedFormData.direccion.lat = place.geometry.location.lat();
+        updatedFormData.direccion.lng = place.geometry.location.lng();
+      }
+
+      setFormData(updatedFormData);
     }
   };
 
@@ -223,6 +390,7 @@ export default function StoresAdmin() {
   const openGameModal = (store: Store) => {
     setSelectedStore(store);
     loadStoreGames(store.id_tienda);
+    resetGameForm();
     setIsGameModalOpen(true);
   };
 
@@ -253,12 +421,15 @@ export default function StoresAdmin() {
     });
   };
 
+  const hasStoreGames = selectedStore ? (storeGamesMap.get(selectedStore.id_tienda)?.size ?? 0) > 0 : false;
+
   if (!session) return null;
 
   return (
     <div className="min-h-screen bg-[#FFFFE0]">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="flex justify-end mb-6">
+        <div className="flex justify-between mb-6">
+          <h1 className="text-xl font-press-start text-gray-800">Tiendas</h1>
           <button
             onClick={() => {
               resetForm();
@@ -272,64 +443,46 @@ export default function StoresAdmin() {
         </div>
 
         {error && (
-          <div className="mb-4 p-4 text-sm text-red-700 bg-red-100 rounded-lg">
+          <div className="mb-4 p-4 text-sm text-red-700 bg-red-100 rounded-lg border-2 border-red-700">
             {error}
           </div>
         )}
 
         {loading ? (
           <LoadingScreen />
+        ) : stores.length > 0 ? (
+          <ul>
+            {stores.map((store) => {
+              // Obtener los juegos de la tienda del mapa global
+              const storeGamesData = storeGamesMap.get(store.id_tienda) || new Map();
+                
+              return renderStoreItem(
+                store,
+                storeGamesData,
+                games,
+                openEditModal,
+                openGameModal,
+                handleDelete,
+                handleRemoveGame
+              );
+            })}
+          </ul>
         ) : (
-          <div className="bg-white shadow overflow-hidden sm:rounded-lg">
-            <ul className="divide-y divide-gray-200">
-              {stores.map((store) => (
-                <li key={store.id_tienda}>
-                  <div className="px-4 py-4 sm:px-6">
-                    <div className="flex items-center justify-between">
-                      <div className="flex-1 min-w-0">
-                        <h3 className="text-lg font-medium text-gray-900 truncate">
-                          {store.nombre}
-                        </h3>
-                        <div className="mt-2 flex items-center text-sm text-gray-500">
-                          <MapPin className="flex-shrink-0 mr-1.5 h-4 w-4" />
-                          {`${store.direccion.calle} ${store.direccion.numero}, ${store.direccion.ciudad}, ${store.direccion.estado} CP ${store.direccion.cp}`}
-                        </div>
-                        <div className="mt-2 flex items-center text-sm text-gray-500">
-                          <Clock className="flex-shrink-0 mr-1.5 h-4 w-4" />
-                          {`Lunes a Viernes: ${store.horario.lunes.apertura} - ${store.horario.lunes.cierre}`}
-                        </div>
-                        <div className="mt-2 text-sm">
-                          <span className="px-2 py-1 text-xs font-medium bg-blue-100 text-blue-800 rounded-full">
-                            Plan {store.plan}
-                          </span>
-                        </div>
-                      </div>
-                      <div className="flex space-x-4">
-                        <button
-                          onClick={() => openGameModal(store)}
-                          className="retro-button inline-flex items-center bg-blue-600 hover:bg-blue-700"
-                        >
-                          <GameController className="h-4 w-4 mr-2" />
-                          <span className="font-press-start text-xs">Gestionar Juegos</span>
-                        </button>
-                        <button
-                          onClick={() => openEditModal(store)}
-                          className="p-2 text-blue-600 hover:text-blue-800"
-                        >
-                          <Edit2 className="h-5 w-5" />
-                        </button>
-                        <button
-                          onClick={() => handleDelete(store.id_tienda)}
-                          className="p-2 text-red-600 hover:text-red-800"
-                        >
-                          <Trash2 className="h-5 w-5" />
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                </li>
-              ))}
-            </ul>
+          <div className="bg-white p-6 text-center rounded-lg border-4 border-gray-800 shadow-lg">
+            <AlertCircle className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+            <p className="font-press-start text-sm text-gray-600 mb-4">
+              No hay tiendas registradas
+            </p>
+            <button
+              onClick={() => {
+                resetForm();
+                setIsModalOpen(true);
+              }}
+              className="retro-button inline-flex items-center"
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              <span className="font-press-start text-xs">Crear primera tienda</span>
+            </button>
           </div>
         )}
 
@@ -341,94 +494,124 @@ export default function StoresAdmin() {
             setSelectedStore(null);
             resetGameForm();
           }}
-          title="Gestionar Juegos de la Tienda"
+          title={selectedStore ? `Juegos de ${selectedStore.nombre}` : "Gestionar Juegos"}
         >
           <div className="space-y-6">
             <form onSubmit={handleGameSubmit} className="space-y-4">
-              <div>
-                <label className="block font-press-start text-xs text-gray-700 mb-2">
-                  Juego
-                </label>
-                <select
-                  value={gameFormData.id_juego}
-                  onChange={(e) => setGameFormData({ ...gameFormData, id_juego: e.target.value })}
-                  className="retro-input"
-                  required
-                >
-                  <option value="">Selecciona un juego</option>
-                  {games.map((game) => (
-                    <option key={game.id_juego} value={game.id_juego}>
-                      {game.nombre}
-                    </option>
-                  ))}
-                </select>
-              </div>
+              <div className="rounded-lg border-2 border-gray-800 p-4 bg-gray-50">
+                <h3 className="font-press-start text-sm text-gray-800 mb-3">Agregar nuevo juego</h3>
+                <div className="space-y-3">
+                  <div>
+                    <label className="block font-press-start text-xs text-gray-700 mb-2">
+                      Juego
+                    </label>
+                    <select
+                      value={gameFormData.id_juego}
+                      onChange={(e) => setGameFormData({ ...gameFormData, id_juego: e.target.value })}
+                      className="retro-input w-full"
+                      required
+                    >
+                      <option value="">Selecciona un juego</option>
+                      {games.map((game) => (
+                        <option key={game.id_juego} value={game.id_juego}>
+                          {game.nombre}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block font-press-start text-xs text-gray-700 mb-2">
-                    Stock
-                  </label>
-                  <input
-                    type="number"
-                    min="0"
-                    value={gameFormData.stock}
-                    onChange={(e) => setGameFormData({ ...gameFormData, stock: parseInt(e.target.value) })}
-                    className="retro-input"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block font-press-start text-xs text-gray-700 mb-2">
-                    Precio
-                  </label>
-                  <input
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={gameFormData.precio}
-                    onChange={(e) => setGameFormData({ ...gameFormData, precio: parseFloat(e.target.value) })}
-                    className="retro-input"
-                    required
-                  />
-                </div>
-              </div>
-
-              <div className="flex justify-end">
-                <button type="submit" className="retro-button">
-                  Agregar Juego
-                </button>
-              </div>
-            </form>
-
-            <div className="mt-6">
-              <h3 className="font-press-start text-sm text-gray-800 mb-4">
-                Juegos en la Tienda
-              </h3>
-              <div className="space-y-4">
-                {Array.from(storeGames.entries()).map(([gameId, data]) => {
-                  const game = games.find(g => g.id_juego === gameId);
-                  if (!game) return null;
-
-                  return (
-                    <div key={gameId} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-                      <div>
-                        <h4 className="font-medium text-gray-900">{game.nombre}</h4>
-                        <p className="text-sm text-gray-600">
-                          Stock: {data.stock} | Precio: ${data.precio}
-                        </p>
-                      </div>
-                      <button
-                        onClick={() => handleRemoveGame(gameId)}
-                        className="p-2 text-red-600 hover:text-red-800"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block font-press-start text-xs text-gray-700 mb-2">
+                        Stock
+                      </label>
+                      <input
+                        type="number"
+                        min="0"
+                        value={gameFormData.stock}
+                        onChange={(e) => setGameFormData({ ...gameFormData, stock: parseInt(e.target.value) || 0 })}
+                        className="retro-input w-full"
+                        required
+                      />
                     </div>
-                  );
-                })}
+                    <div>
+                      <label className="block font-press-start text-xs text-gray-700 mb-2">
+                        Precio
+                      </label>
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={gameFormData.precio}
+                        onChange={(e) => setGameFormData({ ...gameFormData, precio: parseFloat(e.target.value) || 0 })}
+                        className="retro-input w-full"
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  <div className="mt-2">
+                    <button
+                      type="submit"
+                      className="retro-button w-full"
+                      disabled={!gameFormData.id_juego}
+                    >
+                      {storeGames.has(gameFormData.id_juego) ? 'Actualizar' : 'Agregar'} Juego
+                    </button>
+                  </div>
+                </div>
               </div>
-            </div>
+
+              {selectedStore && Array.from(storeGames.entries()).length > 0 ? (
+                <div className="mt-6 pt-4 border-t-2 border-gray-200">
+                  <h3 className="font-press-start text-sm text-gray-800 mb-4">
+                    <GameController className="h-4 w-4 mr-2 inline-block" />
+                    Juegos en inventario ({storeGames.size})
+                  </h3>
+                  <div className="space-y-3">
+                    {Array.from(storeGames.entries()).map(([gameId, gameData]) => {
+                      const gameInfo = games.find(g => g.id_juego === gameId);
+                      
+                      return (
+                        <div key={gameId} className="store-game-item">
+                          <div className="flex-1">
+                            <div className="store-game-name">{gameInfo?.nombre || 'Juego desconocido'}</div>
+                            <div className="store-game-details mt-1">
+                              <div className="store-game-detail">
+                                <Package className="h-3 w-3 mr-1" />
+                                Stock: {gameData.stock}
+                              </div>
+                              <div className="store-game-detail">
+                                <DollarSign className="h-3 w-3 mr-1" />
+                                Precio: ${gameData.precio}
+                              </div>
+                            </div>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveGame(gameId)}
+                            className="store-action-button delete p-1 h-8 w-8 flex items-center justify-center"
+                            aria-label="Eliminar juego"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              ) : selectedStore ? (
+                <div className="text-center p-4 bg-gray-50 rounded-lg border-2 border-gray-300">
+                  <GameController className="h-8 w-8 mx-auto mb-2 text-gray-400" />
+                  <p className="font-press-start text-xs text-gray-500">
+                    Esta tienda no tiene juegos en inventario
+                  </p>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Agrega juegos usando el formulario de arriba
+                  </p>
+                </div>
+              ) : null}
+            </form>
           </div>
         </Modal>
 
