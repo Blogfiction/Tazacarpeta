@@ -10,6 +10,7 @@ import StoresAdmin from './pages/StoresAdmin';
 import GamesAdmin from './pages/GamesAdmin';
 import Profile from './pages/Profile';
 import Settings from './pages/Settings';
+import Reports from './pages/Reports';
 import ErrorScreen from './components/ErrorScreen';
 import ProtectedRoute from './components/ProtectedRoute';
 
@@ -93,6 +94,16 @@ export const router = createBrowserRouter([
       <ProtectedRoute>
         <Layout>
           <Settings />
+        </Layout>
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: '/reports',
+    element: (
+      <ProtectedRoute>
+        <Layout>
+          <Reports />
         </Layout>
       </ProtectedRoute>
     ),
