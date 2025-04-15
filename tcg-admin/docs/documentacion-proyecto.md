@@ -274,12 +274,24 @@ TCG Admin es un sistema integral de gestión diseñado para tiendas y eventos de
 - Implementar manejo adecuado de errores
 - Escribir pruebas exhaustivas (pendiente)
 
+### Modo Desarrollo (Development Mode)
+- **Activación**: Se puede activar/desactivar mediante el botón "DEV: ON/OFF" ubicado en la esquina inferior derecha de la aplicación.
+- **Estado Persistente**: El estado del modo desarrollo se guarda en `localStorage` (`devMode: 'true'`) y es detectado por los servicios.
+- **Credenciales de Acceso**: Usar `email: admin`, `password: 12345` para iniciar sesión en modo desarrollo.
+- **Datos Falsos**: Cuando el modo desarrollo está activo:
+    - El servicio de autenticación (`AuthService`) genera una sesión de usuario administrador falsa.
+    - Los servicios de datos (`activities`, `games`, `stores`, `users`, `reports`) devuelven datos falsos generados con `faker-js` en lugar de llamar a Supabase.
+    - Las operaciones de creación, actualización y eliminación son simuladas localmente (se muestra un log en la consola) sin afectar la base de datos real.
+- **Utilidad**: Permite probar la interfaz de usuario y la lógica del frontend sin necesidad de una conexión real a la base de datos o autenticación válida. Útil para desarrollo offline o pruebas de UI aisladas.
+- **Indicadores**: La página de Login muestra un indicador visual ("MODO DESARROLLO ACTIVO") y placeholders/tooltips para las credenciales de desarrollo cuando el modo está activo.
+
 ### Consideraciones de Seguridad
 - Seguridad a nivel de fila (RLS) implementada
 - Variables de entorno para datos sensibles
 - Se requiere validación de entrada
 - Verificaciones de autenticación implementadas
 - Se necesitan auditorías de seguridad regulares
+- **Importante**: El modo desarrollo y sus credenciales solo deben estar disponibles en entornos de desarrollo, nunca en producción.
 
 ### Directrices de UI/UX
 - Seguir mejores prácticas de accesibilidad (WCAG 2.1)

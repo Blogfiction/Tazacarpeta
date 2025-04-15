@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus, Edit2, Trash2, Calendar, MapPin, Link as LinkIcon, Store, TowerControl as GameController, 
-         Filter, ChevronDown, ChevronUp, ChevronRight, Clock, CheckCircle, XCircle, ArrowUp, ArrowDown } from 'lucide-react';
+         Filter, ChevronDown, ChevronUp, ChevronRight, Clock, CheckCircle, XCircle, ArrowUp, ArrowDown,
+         ChevronLeft, ChevronRight as ChevronRightIcon } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { Activity, ActivityInput, Game, Store as StoreType } from '../types/database';
 import { getActivities, createActivity, updateActivity, deleteActivity } from '../services/activities';
@@ -15,6 +16,8 @@ import PlacesAutocomplete from '../components/PlacesAutocomplete';
 type FilterType = 'all' | 'upcoming' | 'past';
 type SortDirection = 'asc' | 'desc';
 type SortField = 'fecha' | 'nombre';
+
+const ITEMS_PER_PAGE = 5; // Define items per page
 
 export default function ActivitiesAdmin() {
   const { session } = useAuth();
@@ -34,6 +37,11 @@ export default function ActivitiesAdmin() {
   const [sortField, setSortField] = useState<SortField>('fecha');
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
   
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pastCurrentPage, setPastCurrentPage] = useState(1); // Separate page for past events when shown collapsed
+  const [filteredCurrentPage, setFilteredCurrentPage] = useState(1); // Separate page for filtered view
+
   const [formData, setFormData] = useState<ActivityInput>({
     nombre: '',
     fecha: '',
@@ -206,13 +214,89 @@ export default function ActivitiesAdmin() {
     }
   };
 
+  // Reset pagination when filters/sorting change
+  useEffect(() => {
+    setCurrentPage(1);
+    setPastCurrentPage(1);
+    setFilteredCurrentPage(1);
+  }, [filterType, sortField, sortDirection]);
+
   if (!session) return null;
   
-  const filteredActivities = getFilteredAndSortedActivities();
-  const upcomingActivities = getUpcomingActivities();
-  const pastActivities = getPastActivities();
-  const hasPastEvents = pastActivities.length > 0;
-  const hasUpcomingEvents = upcomingActivities.length > 0;
+  const filteredActivitiesData = getFilteredAndSortedActivities();
+  const upcomingActivitiesData = getUpcomingActivities().sort((a, b) => new Date(a.fecha).getTime() - new Date(b.fecha).getTime());
+  const pastActivitiesData = getPastActivities().sort((a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime());
+  
+  const hasPastEvents = pastActivitiesData.length > 0;
+  const hasUpcomingEvents = upcomingActivitiesData.length > 0;
+
+  // --- Pagination Logic ---
+  const calculatePaginatedItems = (items: Activity[], page: number) => {
+    const totalItems = items.length;
+    const totalPages = Math.ceil(totalItems / ITEMS_PER_PAGE);
+    const startIndex = (page - 1) * ITEMS_PER_PAGE;
+    const endIndex = startIndex + ITEMS_PER_PAGE;
+    const paginatedItems = items.slice(startIndex, endIndex);
+    return { paginatedItems, totalPages, totalItems };
+  };
+
+  const { 
+    paginatedItems: paginatedUpcoming, 
+    totalPages: totalUpcomingPages,
+    totalItems: totalUpcomingItems 
+  } = calculatePaginatedItems(upcomingActivitiesData, currentPage);
+
+  const { 
+    paginatedItems: paginatedPast, 
+    totalPages: totalPastPages,
+    totalItems: totalPastItems 
+  } = calculatePaginatedItems(pastActivitiesData, pastCurrentPage);
+  
+  const { 
+    paginatedItems: paginatedFiltered, 
+    totalPages: totalFilteredPages,
+    totalItems: totalFilteredItems 
+  } = calculatePaginatedItems(filteredActivitiesData, filteredCurrentPage);
+  
+  // --- Helper to render pagination controls ---
+  const renderPaginationControls = (
+    currentPageNum: number, 
+    totalPagesNum: number, 
+    setPage: (page: number | ((prev: number) => number)) => void,
+    totalItemsNum: number
+  ) => {
+    if (totalPagesNum <= 1) return null;
+    
+    return (
+      <div className="flex items-center justify-between mt-4 px-4 py-2 border-t border-gray-200">
+        <div></div>
+        
+        <div className="flex items-center space-x-4">
+          <button
+            onClick={() => setPage(prev => Math.max(prev - 1, 1))}
+            disabled={currentPageNum === 1}
+            className={`retro-button p-2 text-xs sm:p-2 ${currentPageNum === 1 ? 'bg-gray-400 opacity-70 cursor-not-allowed' : 'bg-gray-600'}`}
+            aria-label="Página anterior"
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </button>
+          <span className="font-['Press_Start_2P'] text-sm text-gray-800 whitespace-nowrap">
+            Pág {currentPageNum} / {totalPagesNum}
+          </span>
+          <button
+            onClick={() => setPage(prev => Math.min(prev + 1, totalPagesNum))}
+            disabled={currentPageNum === totalPagesNum}
+            className={`retro-button p-2 text-xs sm:p-2 ${currentPageNum === totalPagesNum ? 'bg-gray-400 opacity-70 cursor-not-allowed' : 'bg-gray-800'}`}
+            aria-label="Página siguiente"
+          >
+            <ChevronRightIcon className="h-4 w-4" />
+          </button>
+        </div>
+
+        <div></div>
+      </div>
+    );
+  };
 
   return (
     <div className="min-h-screen bg-[#FFFFE0]">
@@ -367,15 +451,17 @@ export default function ActivitiesAdmin() {
             {/* Si estamos filtrando, mostramos solo las actividades filtradas */}
             {filterType !== 'all' ? (
               <div className="bg-white shadow overflow-hidden sm:rounded-lg">
-                {filteredActivities.length === 0 ? (
+                {paginatedFiltered.length === 0 ? (
                   <div className="p-6 text-center text-gray-500">
                     No hay actividades que coincidan con el filtro seleccionado.
                   </div>
                 ) : (
                   <ul className="divide-y divide-gray-200">
-                    {filteredActivities.map((activity) => renderActivityItem(activity, filterType === 'past'))}
+                    {paginatedFiltered.map((activity) => renderActivityItem(activity, filterType === 'past'))}
                   </ul>
                 )}
+                {/* Pagination for filtered view */}
+                {renderPaginationControls(filteredCurrentPage, totalFilteredPages, setFilteredCurrentPage, totalFilteredItems)}
               </div>
             ) : (
               /* Si no hay filtro, mostramos futuras y pasadas por separado */
@@ -385,14 +471,15 @@ export default function ActivitiesAdmin() {
                   <div className="mb-8">
                     <h2 className="text-lg font-semibold mb-3 font-press-start text-green-700 flex items-center">
                       <CheckCircle className="h-5 w-5 mr-2" />
-                      Próximas Actividades ({upcomingActivities.length})
+                      Próximas Actividades ({upcomingActivitiesData.length})
                     </h2>
                     <div className="bg-white shadow overflow-hidden sm:rounded-lg">
                       <ul className="divide-y divide-gray-200">
-                        {upcomingActivities
-                          .sort((a, b) => new Date(a.fecha).getTime() - new Date(b.fecha).getTime())
-                          .map((activity) => renderActivityItem(activity, false))}
+                        {paginatedUpcoming
+                          .map((activity: Activity) => renderActivityItem(activity, false))}
                       </ul>
+                      {/* Pagination for upcoming view */}
+                      {renderPaginationControls(currentPage, totalUpcomingPages, setCurrentPage, totalUpcomingItems)}
                     </div>
                   </div>
                 ) : (
@@ -424,17 +511,18 @@ export default function ActivitiesAdmin() {
                       }
                       <Clock className="h-5 w-5 mr-2" />
                       <h2 className="text-lg font-semibold">
-                        Actividades Pasadas ({pastActivities.length})
+                        Actividades Pasadas ({pastActivitiesData.length})
                       </h2>
                     </button>
                     
                     {showPastEvents && (
                       <div className="bg-white shadow overflow-hidden sm:rounded-lg opacity-75 hover:opacity-100 transition-opacity">
                         <ul className="divide-y divide-gray-200">
-                          {pastActivities
-                            .sort((a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime())
-                            .map((activity) => renderActivityItem(activity, true))}
+                          {paginatedPast
+                            .map((activity: Activity) => renderActivityItem(activity, true))}
                         </ul>
+                        {/* Pagination for past view */}
+                        {renderPaginationControls(pastCurrentPage, totalPastPages, setPastCurrentPage, totalPastItems)}
                       </div>
                     )}
                   </div>

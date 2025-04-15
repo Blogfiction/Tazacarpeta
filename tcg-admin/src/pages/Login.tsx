@@ -2,6 +2,7 @@ import { LogIn } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { useDev } from '../context/DevContext';
 import toast from 'react-hot-toast';
 import Button from '../components/Button';
 import Input from '../components/Input';
@@ -21,7 +22,8 @@ export default function Login() {
     password: ''
   });
   const navigate = useNavigate();
-  const { session } = useAuth();
+  const { session, setDevSession } = useAuth();
+  const { isDevMode } = useDev();
 
   useEffect(() => {
     if (session) {
@@ -30,6 +32,9 @@ export default function Login() {
   }, [session, navigate]);
 
   const validateForm = (): boolean => {
+    // En modo desarrollo, no validamos los campos
+    if (isDevMode) return true;
+
     const errors = {
       email: '',
       password: ''
@@ -93,7 +98,15 @@ export default function Login() {
           await SecurityService.logLoginSuccess(response.data.user.id);
         }
         
-        // La redirección se maneja automáticamente por el hook useAuth
+        // Si estamos en modo desarrollo, usar setDevSession
+        if (isDevMode) {
+          console.log('Configurando sesión de desarrollo');
+          setDevSession(response.data.session);
+        }
+        
+        // Redirigir explícitamente al dashboard
+        console.log('Redirigiendo al dashboard');
+        navigate('/dashboard', { replace: true });
       }
     } catch (err: any) {
       console.error('Login error:', err);
@@ -131,6 +144,11 @@ export default function Login() {
           >
             Iniciar Sesión
           </h1>
+          {isDevMode && (
+            <div className="mt-2 text-sm font-press-start text-green-600">
+              MODO DESARROLLO ACTIVO
+            </div>
+          )}
         </div>
 
         <form 
@@ -139,7 +157,7 @@ export default function Login() {
           aria-label="Formulario de inicio de sesión"
           noValidate
         >
-          <Tooltip label="Ingresa el correo electrónico con el que te registraste">
+          <Tooltip label={isDevMode ? "En modo desarrollo, usa 'admin' como usuario" : "Ingresa el correo electrónico con el que te registraste"}>
             <Input
               type="email"
               label="Correo electrónico"
@@ -150,10 +168,11 @@ export default function Login() {
               disabled={loading}
               autoComplete="email"
               autoFocus
+              placeholder={isDevMode ? "admin" : ""}
             />
           </Tooltip>
 
-          <Tooltip label="Ingresa tu contraseña (mínimo 6 caracteres)">
+          <Tooltip label={isDevMode ? "En modo desarrollo, usa '12345' como contraseña" : "Ingresa tu contraseña (mínimo 6 caracteres)"}>
             <Input
               type="password"
               label="Contraseña"
@@ -163,6 +182,7 @@ export default function Login() {
               required
               disabled={loading}
               autoComplete="current-password"
+              placeholder={isDevMode ? "12345" : ""}
             />
           </Tooltip>
 

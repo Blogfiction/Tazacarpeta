@@ -1,12 +1,18 @@
 import { jsPDF } from 'jspdf';
 import 'jspdf-autotable';
 import { saveAs } from 'file-saver';
-import { Activity, Store, Game } from '../types/database';
-import { getActivities } from './activities';
-import { getStores } from './stores';
-import { getGames, getStoreGames } from './games';
+import { Activity, Store, Game, StoreGame } from '../types/database';
+import { getActivities as realGetActivities } from './activities';
+import { getStores as realGetStores } from './stores';
+import { getGames as realGetGames, getStoreGames as realGetStoreGames } from './games';
 import { format as formatDate } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { isDevModeActive } from '../lib/devModeUtils';
+import { 
+  createFakeActivities, createFakeStores, createFakeGames, 
+  createFakeStoreInventory, createFakeStoreGame 
+} from '../lib/fakeData';
+import { faker } from '@faker-js/faker/locale/es_MX';
 
 /**
  * Tipo de reporte a generar
@@ -61,6 +67,76 @@ interface DashboardData {
  * Servicio para generar reportes en PDF
  */
 class ReportService {
+  /**
+   * FAKE DATA HELPERS
+   */
+  private FAKE_STORES: Store[] = [];
+  private FAKE_GAMES: Game[] = [];
+  private FAKE_ACTIVITIES: Activity[] = [];
+  private FAKE_STORE_INVENTORY: Record<string, StoreGame[]> = {};
+
+  private initializeFakeData() {
+    if (this.FAKE_STORES.length === 0) {
+      this.FAKE_STORES = createFakeStores(10);
+    }
+    if (this.FAKE_GAMES.length === 0) {
+      this.FAKE_GAMES = createFakeGames(25);
+    }
+    if (this.FAKE_ACTIVITIES.length === 0) {
+      this.FAKE_ACTIVITIES = createFakeActivities(50, this.FAKE_STORES, this.FAKE_GAMES);
+    }
+    if (Object.keys(this.FAKE_STORE_INVENTORY).length === 0) {
+      this.FAKE_STORES.forEach(store => {
+        const inventoryGames = this.FAKE_GAMES.filter(() => Math.random() > 0.3); // ~70% of games in inventory
+        this.FAKE_STORE_INVENTORY[store.id_tienda] = inventoryGames.map(game => 
+            createFakeStoreGame(store.id_tienda, game.id_juego, { 
+                precio: parseFloat(faker.commerce.price({ min: 5000, max: 50000, dec: 0 }))
+            })
+        );
+      });
+    }
+  }
+  
+  private async getActivities(): Promise<Activity[]> {
+    if (isDevModeActive()) {
+        this.initializeFakeData();
+        console.log('ReportService: Dev Mode - Using fake activities for report');
+        await new Promise(resolve => setTimeout(resolve, 50)); // Simulate delay
+        return [...this.FAKE_ACTIVITIES]; // Return a copy
+    }
+    return realGetActivities();
+  }
+
+  private async getStores(): Promise<Store[]> {
+    if (isDevModeActive()) {
+        this.initializeFakeData();
+        console.log('ReportService: Dev Mode - Using fake stores for report');
+        await new Promise(resolve => setTimeout(resolve, 50));
+        return [...this.FAKE_STORES]; // Return a copy
+    }
+    return realGetStores();
+  }
+
+  private async getGames(): Promise<Game[]> {
+    if (isDevModeActive()) {
+        this.initializeFakeData();
+        console.log('ReportService: Dev Mode - Using fake games for report');
+        await new Promise(resolve => setTimeout(resolve, 50));
+        return [...this.FAKE_GAMES]; // Return a copy
+    }
+    return realGetGames();
+  }
+
+  private async getStoreGames(storeId: string): Promise<StoreGame[]> {
+    if (isDevModeActive()) {
+        this.initializeFakeData();
+        console.log(`ReportService: Dev Mode - Using fake inventory for store ${storeId}`);
+        await new Promise(resolve => setTimeout(resolve, 30));
+        return this.FAKE_STORE_INVENTORY[storeId] || [];
+    }
+    return realGetStoreGames(storeId);
+  }
+
   /**
    * Genera un reporte en PDF basado en las opciones proporcionadas
    */
@@ -186,7 +262,7 @@ class ReportService {
    * Obtiene datos de actividades con filtros aplicados
    */
   private async fetchActivitiesData(options: ReportOptions): Promise<Activity[]> {
-    let activities = await getActivities();
+    let activities = await this.getActivities();
     
     // Aplicar filtros
     if (options.dateFrom || options.dateTo || options.filters) {
@@ -226,7 +302,7 @@ class ReportService {
    * Obtiene datos de tiendas con filtros aplicados
    */
   private async fetchStoresData(options: ReportOptions): Promise<Store[]> {
-    let stores = await getStores();
+    let stores = await this.getStores();
     
     // Aplicar filtros específicos
     if (options.filters) {
@@ -248,7 +324,7 @@ class ReportService {
    * Obtiene datos de juegos con filtros aplicados
    */
   private async fetchGamesData(options: ReportOptions): Promise<Game[]> {
-    let games = await getGames();
+    let games = await this.getGames();
     
     // Aplicar filtros específicos
     if (options.filters) {

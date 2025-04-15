@@ -6,6 +6,7 @@ type AuthContextType = {
   session: Session | null
   user: User | null
   loading: boolean
+  setDevSession: (session: Session | null) => void
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -33,10 +34,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => subscription.unsubscribe()
   }, [])
 
+  const setDevSession = (devSession: Session | null) => {
+    console.log('Estableciendo sesión de desarrollo:', devSession);
+    setSession(devSession)
+    setUser(devSession?.user ?? null)
+    setLoading(false)
+  }
+
   const value = {
     session,
     user,
     loading,
+    setDevSession
   }
 
   return (

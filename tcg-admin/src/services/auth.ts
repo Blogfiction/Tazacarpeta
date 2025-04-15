@@ -1,5 +1,7 @@
 import { supabase } from '../lib/supabaseClient';
 import type { AuthError, AuthResponse, Session, User } from '@supabase/supabase-js';
+import { createFakeAdminUser, createFakeSession } from '../lib/fakeData';
+import { isDevModeActive } from '../lib/devModeUtils';
 
 interface LoginCredentials {
   email: string;
@@ -23,6 +25,28 @@ export const AuthService = {
    * Iniciar sesión con email y contraseña
    */
   async login({ email, password }: LoginCredentials): Promise<AuthResponse> {
+    // Check for development mode credentials FIRST
+    if (isDevModeActive() && email === 'admin' && password === '12345') {
+      console.log('AuthService: Login en modo desarrollo detectado');
+      
+      const fakeUser = createFakeAdminUser();
+      const fakeSession = createFakeSession(fakeUser);
+      
+      console.log('AuthService: Fake session created:', fakeSession);
+
+      // Simulate a slight delay like a real API call
+      await new Promise(resolve => setTimeout(resolve, 300));
+
+      return {
+        data: {
+          session: fakeSession,
+          user: fakeUser
+        },
+        error: null
+      };
+    }
+
+    // --- Normal Supabase Login --- 
     if (!email || !password) {
       throw new Error('Email y contraseña son requeridos');
     }
@@ -32,18 +56,19 @@ export const AuthService = {
       throw new Error('Formato de email inválido');
     }
 
+    console.log('AuthService: Attempting Supabase login');
     const response = await supabase.auth.signInWithPassword({ email, password });
     
     if (response.error) {
-      // Sanitizar mensajes de error para evitar revelar información sensible
+      console.error('AuthService: Supabase login error:', response.error);
       if (response.error.message.includes('credentials')) {
         throw new Error('Credenciales inválidas');
       } else {
-        console.error('Error de autenticación:', response.error);
         throw new Error('Error al iniciar sesión. Por favor intenta nuevamente.');
       }
     }
     
+    console.log('AuthService: Supabase login successful');
     return response;
   },
 

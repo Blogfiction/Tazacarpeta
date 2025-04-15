@@ -1,13 +1,14 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Edit2, Trash2, TowerControl as GameController, Search, Filter, AlertTriangle, Check } from 'lucide-react';
+import { Plus, Edit2, Trash2, TowerControl as GameController, Search, Filter, AlertTriangle, Check, 
+         ChevronLeft, ChevronRight as ChevronRightIcon } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { Game, GameInput } from '../types/database';
 import { getGames, createGame, updateGame, deleteGame } from '../services/games';
 import Modal from '../components/Modal';
 import LoadingScreen from '../components/LoadingScreen';
 
-const ITEMS_PER_PAGE = 9;
+const ITEMS_PER_PAGE = 6;
 const CATEGORIAS = [
   'Estrategia',
   'Familiar',
@@ -119,12 +120,18 @@ export default function GamesAdmin() {
       return;
     }
     
+    // Prepare data ensuring edad_maxima is number or null
+    const preparedFormData = {
+      ...formData,
+      edad_maxima: formData.edad_maxima === undefined ? null : formData.edad_maxima,
+    };
+    
     try {
       if (currentGame) {
-        await updateGame(currentGame.id_juego, formData);
+        await updateGame(currentGame.id_juego, preparedFormData);
         setSuccess('Juego actualizado correctamente');
       } else {
-        await createGame(formData);
+        await createGame(preparedFormData);
         setSuccess('Juego creado correctamente');
       }
       setIsModalOpen(false);
@@ -163,6 +170,40 @@ export default function GamesAdmin() {
   };
 
   if (!session) return null;
+
+  const renderPaginationControls = (
+    currentPageNum: number, 
+    totalPagesNum: number, 
+    setPage: (page: number | ((prev: number) => number)) => void,
+  ) => {
+    if (totalPagesNum <= 1) return null;
+    
+    return (
+      <div className="flex items-center justify-center mt-6 py-2">
+        <div className="flex items-center space-x-4">
+          <button
+            onClick={() => setPage(prev => Math.max(prev - 1, 1))}
+            disabled={currentPageNum === 1}
+            className={`retro-button p-2 text-xs sm:p-2 ${currentPageNum === 1 ? 'bg-gray-400 opacity-70 cursor-not-allowed' : 'bg-gray-600'}`}
+            aria-label="Página anterior"
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </button>
+          <span className="font-['Press_Start_2P'] text-sm text-gray-800 whitespace-nowrap">
+            Pág {currentPageNum} / {totalPagesNum}
+          </span>
+          <button
+            onClick={() => setPage(prev => Math.min(prev + 1, totalPagesNum))}
+            disabled={currentPageNum === totalPagesNum}
+            className={`retro-button p-2 text-xs sm:p-2 ${currentPageNum === totalPagesNum ? 'bg-gray-400 opacity-70 cursor-not-allowed' : 'bg-gray-800'}`}
+            aria-label="Página siguiente"
+          >
+            <ChevronRightIcon className="h-4 w-4" />
+          </button>
+        </div>
+      </div>
+    );
+  };
 
   return (
     <div className="min-h-screen bg-[#FFFFE0]">
@@ -283,231 +324,203 @@ export default function GamesAdmin() {
               ))}
             </div>
 
-            {totalPages > 1 && (
-              <div className="mt-6 flex justify-center space-x-2">
-                <button
-                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                  disabled={currentPage === 1}
-                  className="retro-button px-3 py-1 disabled:opacity-50"
-                >
-                  Anterior
-                </button>
-                {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
-                  <button
-                    key={page}
-                    onClick={() => setCurrentPage(page)}
-                    className={`retro-button px-3 py-1 ${
-                      currentPage === page ? 'bg-gray-800' : 'bg-gray-600'
-                    }`}
+            {renderPaginationControls(currentPage, totalPages, setCurrentPage)}
+
+            <Modal
+              isOpen={isModalOpen}
+              onClose={() => {
+                setIsModalOpen(false);
+                resetForm();
+                setValidationErrors([]);
+              }}
+              title={currentGame ? 'Editar Juego' : 'Nuevo Juego'}
+            >
+              {validationErrors.length > 0 && (
+                <div className="mb-4 p-4 text-sm text-red-700 bg-red-100 rounded-lg">
+                  <div className="font-medium">Por favor, corrige los siguientes errores:</div>
+                  <ul className="mt-2 list-disc list-inside">
+                    {validationErrors.map((error, index) => (
+                      <li key={index}>{error}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              <form onSubmit={handleSubmit} className="space-y-6">
+                <div>
+                  <label className="block font-press-start text-xs text-gray-700 mb-2">
+                    Nombre
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={formData.nombre}
+                    onChange={(e) => setFormData({ ...formData, nombre: e.target.value })}
+                    className="retro-input"
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-press-start text-xs text-gray-700 mb-2">
+                    Descripción
+                  </label>
+                  <textarea
+                    required
+                    value={formData.descripcion}
+                    onChange={(e) => setFormData({ ...formData, descripcion: e.target.value })}
+                    className="retro-input h-24"
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-press-start text-xs text-gray-700 mb-2">
+                    Categoría
+                  </label>
+                  <select
+                    required
+                    value={formData.categoria}
+                    onChange={(e) => setFormData({ ...formData, categoria: e.target.value })}
+                    className="retro-input"
                   >
-                    {page}
+                    <option value="">Selecciona una categoría</option>
+                    {CATEGORIAS.map(cat => (
+                      <option key={cat} value={cat}>{cat}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block font-press-start text-xs text-gray-700 mb-2">
+                      Edad Mínima
+                    </label>
+                    <input
+                      type="number"
+                      required
+                      min="0"
+                      value={formData.edad_minima}
+                      onChange={(e) => {
+                        const value = parseInt(e.target.value);
+                        setFormData({ 
+                          ...formData, 
+                          edad_minima: value,
+                          edad_maxima: value > (formData.edad_maxima || 0) ? value : formData.edad_maxima 
+                        });
+                      }}
+                      className="retro-input"
+                    />
+                  </div>
+                  <div>
+                    <label className="block font-press-start text-xs text-gray-700 mb-2">
+                      Edad Máxima
+                    </label>
+                    <input
+                      type="number"
+                      min={formData.edad_minima}
+                      value={formData.edad_maxima || ''}
+                      onChange={(e) => setFormData({ ...formData, edad_maxima: e.target.value ? parseInt(e.target.value) : null })}
+                      className="retro-input"
+                      placeholder="Opcional"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block font-press-start text-xs text-gray-700 mb-2">
+                      Jugadores Mínimo
+                    </label>
+                    <input
+                      type="number"
+                      required
+                      min="1"
+                      value={formData.jugadores_min}
+                      onChange={(e) => {
+                        const value = parseInt(e.target.value);
+                        setFormData({ 
+                          ...formData, 
+                          jugadores_min: value,
+                          jugadores_max: value > formData.jugadores_max ? value : formData.jugadores_max 
+                        });
+                      }}
+                      className="retro-input"
+                    />
+                  </div>
+                  <div>
+                    <label className="block font-press-start text-xs text-gray-700 mb-2">
+                      Jugadores Máximo
+                    </label>
+                    <input
+                      type="number"
+                      required
+                      min={formData.jugadores_min}
+                      value={formData.jugadores_max}
+                      onChange={(e) => setFormData({ ...formData, jugadores_max: parseInt(e.target.value) })}
+                      className="retro-input"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block font-press-start text-xs text-gray-700 mb-2">
+                      Duración Mínima (min)
+                    </label>
+                    <input
+                      type="number"
+                      required
+                      min="1"
+                      value={formData.duracion_min}
+                      onChange={(e) => {
+                        const value = parseInt(e.target.value);
+                        setFormData({ 
+                          ...formData, 
+                          duracion_min: value,
+                          duracion_max: value > formData.duracion_max ? value : formData.duracion_max 
+                        });
+                      }}
+                      className="retro-input"
+                    />
+                  </div>
+                  <div>
+                    <label className="block font-press-start text-xs text-gray-700 mb-2">
+                      Duración Máxima (min)
+                    </label>
+                    <input
+                      type="number"
+                      required
+                      min={formData.duracion_min}
+                      value={formData.duracion_max}
+                      onChange={(e) => setFormData({ ...formData, duracion_max: parseInt(e.target.value) })}
+                      className="retro-input"
+                    />
+                  </div>
+                </div>
+
+                <div className="modal-footer">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsModalOpen(false);
+                      resetForm();
+                      setValidationErrors([]);
+                    }}
+                    className="retro-button bg-gray-600 hover:bg-gray-700"
+                  >
+                    Cancelar
                   </button>
-                ))}
-                <button
-                  onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                  disabled={currentPage === totalPages}
-                  className="retro-button px-3 py-1 disabled:opacity-50"
-                >
-                  Siguiente
-                </button>
-              </div>
-            )}
+                  <button
+                    type="submit"
+                    className="retro-button"
+                    disabled={validationErrors.length > 0}
+                  >
+                    {currentGame ? 'Actualizar' : 'Crear'}
+                  </button>
+                </div>
+              </form>
+            </Modal>
           </>
         )}
-
-        <Modal
-          isOpen={isModalOpen}
-          onClose={() => {
-            setIsModalOpen(false);
-            resetForm();
-            setValidationErrors([]);
-          }}
-          title={currentGame ? 'Editar Juego' : 'Nuevo Juego'}
-        >
-          {validationErrors.length > 0 && (
-            <div className="mb-4 p-4 text-sm text-red-700 bg-red-100 rounded-lg">
-              <div className="font-medium">Por favor, corrige los siguientes errores:</div>
-              <ul className="mt-2 list-disc list-inside">
-                {validationErrors.map((error, index) => (
-                  <li key={index}>{error}</li>
-                ))}
-              </ul>
-            </div>
-          )}
-
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <div>
-              <label className="block font-press-start text-xs text-gray-700 mb-2">
-                Nombre
-              </label>
-              <input
-                type="text"
-                required
-                value={formData.nombre}
-                onChange={(e) => setFormData({ ...formData, nombre: e.target.value })}
-                className="retro-input"
-              />
-            </div>
-
-            <div>
-              <label className="block font-press-start text-xs text-gray-700 mb-2">
-                Descripción
-              </label>
-              <textarea
-                required
-                value={formData.descripcion}
-                onChange={(e) => setFormData({ ...formData, descripcion: e.target.value })}
-                className="retro-input h-24"
-              />
-            </div>
-
-            <div>
-              <label className="block font-press-start text-xs text-gray-700 mb-2">
-                Categoría
-              </label>
-              <select
-                required
-                value={formData.categoria}
-                onChange={(e) => setFormData({ ...formData, categoria: e.target.value })}
-                className="retro-input"
-              >
-                <option value="">Selecciona una categoría</option>
-                {CATEGORIAS.map(cat => (
-                  <option key={cat} value={cat}>{cat}</option>
-                ))}
-              </select>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className="block font-press-start text-xs text-gray-700 mb-2">
-                  Edad Mínima
-                </label>
-                <input
-                  type="number"
-                  required
-                  min="0"
-                  value={formData.edad_minima}
-                  onChange={(e) => {
-                    const value = parseInt(e.target.value);
-                    setFormData({ 
-                      ...formData, 
-                      edad_minima: value,
-                      edad_maxima: value > (formData.edad_maxima || 0) ? value : formData.edad_maxima 
-                    });
-                  }}
-                  className="retro-input"
-                />
-              </div>
-              <div>
-                <label className="block font-press-start text-xs text-gray-700 mb-2">
-                  Edad Máxima
-                </label>
-                <input
-                  type="number"
-                  min={formData.edad_minima}
-                  value={formData.edad_maxima || ''}
-                  onChange={(e) => setFormData({ ...formData, edad_maxima: e.target.value ? parseInt(e.target.value) : null })}
-                  className="retro-input"
-                  placeholder="Opcional"
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className="block font-press-start text-xs text-gray-700 mb-2">
-                  Jugadores Mínimo
-                </label>
-                <input
-                  type="number"
-                  required
-                  min="1"
-                  value={formData.jugadores_min}
-                  onChange={(e) => {
-                    const value = parseInt(e.target.value);
-                    setFormData({ 
-                      ...formData, 
-                      jugadores_min: value,
-                      jugadores_max: value > formData.jugadores_max ? value : formData.jugadores_max 
-                    });
-                  }}
-                  className="retro-input"
-                />
-              </div>
-              <div>
-                <label className="block font-press-start text-xs text-gray-700 mb-2">
-                  Jugadores Máximo
-                </label>
-                <input
-                  type="number"
-                  required
-                  min={formData.jugadores_min}
-                  value={formData.jugadores_max}
-                  onChange={(e) => setFormData({ ...formData, jugadores_max: parseInt(e.target.value) })}
-                  className="retro-input"
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className="block font-press-start text-xs text-gray-700 mb-2">
-                  Duración Mínima (min)
-                </label>
-                <input
-                  type="number"
-                  required
-                  min="1"
-                  value={formData.duracion_min}
-                  onChange={(e) => {
-                    const value = parseInt(e.target.value);
-                    setFormData({ 
-                      ...formData, 
-                      duracion_min: value,
-                      duracion_max: value > formData.duracion_max ? value : formData.duracion_max 
-                    });
-                  }}
-                  className="retro-input"
-                />
-              </div>
-              <div>
-                <label className="block font-press-start text-xs text-gray-700 mb-2">
-                  Duración Máxima (min)
-                </label>
-                <input
-                  type="number"
-                  required
-                  min={formData.duracion_min}
-                  value={formData.duracion_max}
-                  onChange={(e) => setFormData({ ...formData, duracion_max: parseInt(e.target.value) })}
-                  className="retro-input"
-                />
-              </div>
-            </div>
-
-            <div className="modal-footer">
-              <button
-                type="button"
-                onClick={() => {
-                  setIsModalOpen(false);
-                  resetForm();
-                  setValidationErrors([]);
-                }}
-                className="retro-button bg-gray-600 hover:bg-gray-700"
-              >
-                Cancelar
-              </button>
-              <button
-                type="submit"
-                className="retro-button"
-                disabled={validationErrors.length > 0}
-              >
-                {currentGame ? 'Actualizar' : 'Crear'}
-              </button>
-            </div>
-          </form>
-        </Modal>
       </div>
     </div>
   );

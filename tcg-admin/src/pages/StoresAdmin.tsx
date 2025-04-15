@@ -3,7 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { 
   Plus, Edit2, Trash2, MapPin, Clock, TowerControl as GameController, 
   Package, DollarSign, Coins, ChevronDown, ChevronUp, ShoppingBag, AlertCircle,
-  Link as LinkIcon
+  Link as LinkIcon,
+  ChevronLeft, ChevronRight as ChevronRightIcon
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { Store, StoreInput, Direccion, HorarioTienda, Game, StoreGameInput } from '../types/database';
@@ -156,6 +157,8 @@ function renderStoreItem(
   );
 }
 
+const ITEMS_PER_PAGE = 5;
+
 export default function StoresAdmin() {
   const { session } = useAuth();
   const navigate = useNavigate();
@@ -169,6 +172,7 @@ export default function StoresAdmin() {
   const [isGameModalOpen, setIsGameModalOpen] = useState(false);
   const [currentStore, setCurrentStore] = useState<Store | null>(null);
   const [selectedStore, setSelectedStore] = useState<Store | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
   const [formData, setFormData] = useState<StoreInput>({
     nombre: '',
     direccion: {
@@ -425,6 +429,55 @@ export default function StoresAdmin() {
 
   if (!session) return null;
 
+  const calculatePaginatedItems = (items: Store[], page: number) => {
+    const totalItems = items.length;
+    const totalPages = Math.ceil(totalItems / ITEMS_PER_PAGE);
+    const startIndex = (page - 1) * ITEMS_PER_PAGE;
+    const endIndex = startIndex + ITEMS_PER_PAGE;
+    const paginatedItems = items.slice(startIndex, endIndex);
+    return { paginatedItems, totalPages, totalItems };
+  };
+
+  const {
+    paginatedItems: paginatedStores,
+    totalPages: totalStorePages,
+    totalItems: totalStoreItems
+  } = calculatePaginatedItems(stores, currentPage);
+  
+  const renderPaginationControls = (
+    currentPageNum: number, 
+    totalPagesNum: number, 
+    setPage: (page: number | ((prev: number) => number)) => void,
+  ) => {
+    if (totalPagesNum <= 1) return null;
+    
+    return (
+      <div className="flex items-center justify-center mt-6 py-2">
+        <div className="flex items-center space-x-4">
+          <button
+            onClick={() => setPage(prev => Math.max(prev - 1, 1))}
+            disabled={currentPageNum === 1}
+            className={`retro-button p-2 text-xs sm:p-2 ${currentPageNum === 1 ? 'bg-gray-400 opacity-70 cursor-not-allowed' : 'bg-gray-600'}`}
+            aria-label="Página anterior"
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </button>
+          <span className="font-['Press_Start_2P'] text-sm text-gray-800 whitespace-nowrap">
+            Pág {currentPageNum} / {totalPagesNum}
+          </span>
+          <button
+            onClick={() => setPage(prev => Math.min(prev + 1, totalPagesNum))}
+            disabled={currentPageNum === totalPagesNum}
+            className={`retro-button p-2 text-xs sm:p-2 ${currentPageNum === totalPagesNum ? 'bg-gray-400 opacity-70 cursor-not-allowed' : 'bg-gray-800'}`}
+            aria-label="Página siguiente"
+          >
+            <ChevronRightIcon className="h-4 w-4" />
+          </button>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="min-h-screen bg-[#FFFFE0]">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -451,22 +504,24 @@ export default function StoresAdmin() {
         {loading ? (
           <LoadingScreen />
         ) : stores.length > 0 ? (
-          <ul>
-            {stores.map((store) => {
-              // Obtener los juegos de la tienda del mapa global
-              const storeGamesData = storeGamesMap.get(store.id_tienda) || new Map();
+          <>
+            <ul>
+              {paginatedStores.map((store) => {
+                const storeGamesData = storeGamesMap.get(store.id_tienda) || new Map();
                 
-              return renderStoreItem(
-                store,
-                storeGamesData,
-                games,
-                openEditModal,
-                openGameModal,
-                handleDelete,
-                handleRemoveGame
-              );
-            })}
-          </ul>
+                return renderStoreItem(
+                  store,
+                  storeGamesData,
+                  games,
+                  openEditModal,
+                  openGameModal,
+                  handleDelete,
+                  handleRemoveGame
+                );
+              })}
+            </ul>
+            {renderPaginationControls(currentPage, totalStorePages, setCurrentPage)}
+          </>
         ) : (
           <div className="bg-white p-6 text-center rounded-lg border-4 border-gray-800 shadow-lg">
             <AlertCircle className="h-12 w-12 text-gray-400 mx-auto mb-4" />
@@ -486,7 +541,6 @@ export default function StoresAdmin() {
           </div>
         )}
 
-        {/* Modal de Juegos */}
         <Modal
           isOpen={isGameModalOpen}
           onClose={() => {
@@ -615,7 +669,6 @@ export default function StoresAdmin() {
           </div>
         </Modal>
 
-        {/* Modal de Tienda */}
         <Modal
           isOpen={isModalOpen}
           onClose={() => {

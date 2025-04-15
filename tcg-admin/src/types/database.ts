@@ -1,5 +1,3 @@
-import { Database } from './supabase';
-
 export interface Game {
   id_juego: string;
   nombre: string;
@@ -124,4 +122,13 @@ export interface StoreGameInput {
   id_juego: string;
   stock: number;
   precio: number;
+}
+
+// Added Report type based on documentation
+export interface Report {
+  id_informe: string;
+  id_tienda: string | null; // Allow null if report is not store-specific
+  tipo_informe: string;
+  fecha_generacion: string;
+  parametros: { [key: string]: any }; // Use a flexible type for parameters
 }

@@ -79,7 +79,8 @@ export default function Dashboard() {
                 Próximas Actividades
               </h2>
               <EventList
-                events={activities.filter(activity => new Date(activity.fecha) >= new Date())}
+                events={activities.filter(activity => new Date(activity.fecha) >= new Date())
+                                 .sort((a, b) => new Date(a.fecha).getTime() - new Date(b.fecha).getTime())}
                 onEventClick={handleEventClick}
               />
             </div>
