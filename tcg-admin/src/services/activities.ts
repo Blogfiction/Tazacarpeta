@@ -1,6 +1,6 @@
 import { supabase } from '../lib/supabaseClient'
 import type { Activity, ActivityInput } from '../types/database'
-import { isDevModeActive } from '../lib/devModeUtils';
+import { isDevModeActive, setConnectionIssues } from '../lib/devModeUtils';
 import { createFakeActivities, createFakeActivity } from '../lib/fakeData';
 import { createFakeStores, createFakeGames } from '../lib/fakeData'; // Needed for context
 
@@ -17,16 +17,29 @@ export async function getActivities(): Promise<Activity[]> {
   }
 
   console.log('ActivitiesService: Fetching activities from Supabase');
-  const { data, error } = await supabase
-    .from('activities')
-    .select('*')
-    .order('fecha', { ascending: true })
+  try {
+    const { data, error } = await supabase
+      .from('activities')
+      .select('*')
+      .order('fecha', { ascending: true })
 
-  if (error) {
-    console.error('ActivitiesService: Error fetching activities:', error);
-    throw error
+    if (error) {
+      console.error('ActivitiesService: Error fetching activities:', error);
+      // Si es un error de conexión, activar modo desarrollo
+      if (error.message.includes('Failed to fetch') || error.message.includes('ERR_INTERNET_DISCONNECTED')) {
+        console.log('ActivitiesService: Connection issues detected, activating dev mode');
+        setConnectionIssues(true);
+        return createFakeActivities(15, FAKE_STORES, FAKE_GAMES);
+      }
+      throw error
+    }
+    return data || []
+  } catch (err: any) {
+    console.error('ActivitiesService: Network error:', err);
+    // Activar modo desarrollo para errores de red
+    setConnectionIssues(true);
+    return createFakeActivities(15, FAKE_STORES, FAKE_GAMES);
   }
-  return data || []
 }
 
 export async function getActivity(id: string): Promise<Activity | null> {

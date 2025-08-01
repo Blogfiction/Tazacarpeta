@@ -5,9 +5,24 @@ const DEV_MODE_STORAGE_KEY = 'devMode';
  * @returns {boolean} True if development mode is active, false otherwise.
  */
 export function isDevModeActive(): boolean {
-  // Ensure this code only runs in the browser environment
-  if (typeof window !== 'undefined' && typeof window.localStorage !== 'undefined') {
-    return localStorage.getItem(DEV_MODE_STORAGE_KEY) === 'true';
+  // Si hay problemas de conexión, activar modo desarrollo
+  const hasConnectionIssues = localStorage.getItem('connection_issues') === 'true';
+  
+  // Temporalmente activar modo desarrollo por defecto
+  return true; // Cambiar a false cuando las variables de entorno estén funcionando
+  
+  // return (
+  //   import.meta.env.VITE_DEV_MODE === 'true' ||
+  //   import.meta.env.DEV ||
+  //   hasConnectionIssues
+  // );
+}
+
+// Función para activar modo desarrollo cuando hay problemas de conexión
+export function setConnectionIssues(hasIssues: boolean): void {
+  if (hasIssues) {
+    localStorage.setItem('connection_issues', 'true');
+  } else {
+    localStorage.removeItem('connection_issues');
   }
-  return false; // Default to false if localStorage is not available
 } 

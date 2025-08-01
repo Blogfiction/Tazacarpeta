@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useState } from 'react'
 import { Session, User } from '@supabase/supabase-js'
-import { supabase } from '../lib/supabaseClient'
+import { AuthService } from '../services/auth'
 
 type AuthContextType = {
   session: Session | null
@@ -17,21 +17,37 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    // Obtener la sesión inicial
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session)
-      setUser(session?.user ?? null)
-      setLoading(false)
-    })
+    // Obtener la sesión inicial usando nuestro sistema personalizado
+    const initializeAuth = async () => {
+      try {
+        const session = await AuthService.getSession()
+        setSession(session)
+        setUser(session?.user ?? null)
+      } catch (error) {
+        console.error('Error initializing auth:', error)
+        setSession(null)
+        setUser(null)
+      } finally {
+        setLoading(false)
+      }
+    }
 
-    // Escuchar cambios en la autenticación
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session)
-      setUser(session?.user ?? null)
-      setLoading(false)
-    })
+    initializeAuth()
 
-    return () => subscription.unsubscribe()
+    // Verificar sesión periódicamente (cada 5 minutos)
+    const interval = setInterval(async () => {
+      try {
+        const session = await AuthService.getSession()
+        setSession(session)
+        setUser(session?.user ?? null)
+      } catch (error) {
+        console.error('Error checking session:', error)
+        setSession(null)
+        setUser(null)
+      }
+    }, 5 * 60 * 1000) // 5 minutos
+
+    return () => clearInterval(interval)
   }, [])
 
   const setDevSession = (devSession: Session | null) => {
