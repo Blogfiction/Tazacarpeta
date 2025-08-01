@@ -112,6 +112,17 @@ export default function Signup() {
     return isValid;
   };
 
+  // Función para hashear con SHA-256
+  async function hashPasswordSHA256(password: string) {
+    const encoder = new TextEncoder();
+    const data = encoder.encode(password);
+    const hashBuffer = await window.crypto.subtle.digest('SHA-256', data);
+    // Convertir ArrayBuffer a hex string
+    return Array.from(new Uint8Array(hashBuffer))
+      .map(b => b.toString(16).padStart(2, '0'))
+      .join('');
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -120,53 +131,41 @@ export default function Signup() {
     setLoading(true);
 
     try {
-      console.log('Iniciando registro de usuario con datos:', {
-        email: formData.email,
-        nombre: formData.nombre,
-        comuna: formData.comuna
-      });
+      // Hashear la contraseña antes de guardar (SHA-256)
+      const passwordHash = await hashPasswordSHA256(formData.password.trim());
 
-      const { data, error } = await supabase.auth.signUp({
-        email: formData.email.trim(),
-        password: formData.password.trim(),
-        options: {
-          data: {
-            nombre: formData.nombre.trim(),
-            comuna_region: formData.comuna
+      // Insertar en la tabla 'users' personalizada
+      const { error: dbError } = await supabase
+        .from('users')
+        .insert([
+          {
+            id_user: crypto.randomUUID(), // Genera un UUID para el usuario
+            first_name: formData.nombre.trim(), // nombre -> first_name
+            last_name: '', // Si quieres pedirlo, agrégalo al formulario
+            city: '',      // Si quieres pedirlo, agrégalo al formulario
+            region: '',    // No se usa comuna aquí
+            country: formData.comuna, // comuna -> country
+            updated_at: new Date().toISOString(),
+            email: formData.email.trim(),
+            total_searches: 0,
+            total_inscriptions: 0,
+            last_activity: null,
+            created_at: new Date().toISOString(),
+            id_plan: null, // O el valor por defecto que corresponda
+            id_role: null, // O el valor por defecto que corresponda
+            password_hash: passwordHash
           }
-        }
-      });
-      
-      if (error) {
-        console.error('Error de registro:', error);
-        
-        switch (error.message) {
-          case 'User already registered':
-            toast.error('Este correo electrónico ya está registrado');
-            break;
-          case 'Password should be at least 6 characters':
-            toast.error('La contraseña debe tener al menos 6 caracteres');
-            break;
-          case 'Database error saving new user':
-            console.error('Error detallado:', error);
-            toast.error('Error al crear el perfil de usuario. Por favor, intenta de nuevo');
-            break;
-          default:
-            console.error('Error no manejado:', error);
-            toast.error('Error al registrar usuario. Por favor, intenta de nuevo');
-        }
-      } else if (data.user) {
-        console.log('Usuario registrado exitosamente:', {
-          id: data.user.id,
-          email: data.user.email,
-          metadata: data.user.user_metadata
-        });
-        
-        toast.success('Registro exitoso. Redirigiendo al login...');
-        setTimeout(() => {
-          navigate('/login');
-        }, 2000);
+        ]);
+      if (dbError) {
+        console.error('Error al guardar en users:', dbError);
+        toast.error('Error al guardar el usuario en la base de datos');
+        setLoading(false);
+        return;
       }
+      toast.success('Registro exitoso. Redirigiendo al login...');
+      setTimeout(() => {
+        navigate('/login');
+      }, 2000);
     } catch (err) {
       console.error('Error inesperado durante el registro:', err);
       toast.error('Error al conectar con el servidor. Por favor, intenta de nuevo más tarde');
