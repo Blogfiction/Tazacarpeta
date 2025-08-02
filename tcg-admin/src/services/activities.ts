@@ -18,10 +18,11 @@ export async function getActivities(): Promise<Activity[]> {
 
   console.log('ActivitiesService: Fetching activities from Supabase');
   try {
+    console.log('ActivitiesService: Attempting to connect to Supabase...');
     const { data, error } = await supabase
       .from('activities')
       .select('*')
-      .order('fecha', { ascending: true })
+      .order('date', { ascending: true })
 
     if (error) {
       console.error('ActivitiesService: Error fetching activities:', error);
@@ -33,6 +34,8 @@ export async function getActivities(): Promise<Activity[]> {
       }
       throw error
     }
+    
+    console.log('ActivitiesService: Successfully fetched activities from Supabase:', data?.length || 0, 'activities');
     return data || []
   } catch (err: any) {
     console.error('ActivitiesService: Network error:', err);
@@ -48,15 +51,15 @@ export async function getActivity(id: string): Promise<Activity | null> {
     await new Promise(resolve => setTimeout(resolve, 100));
     // Find activity in generated list or create a specific one
     const existing = createFakeActivities(1, FAKE_STORES, FAKE_GAMES); // Reuse generator for consistency
-    const found = existing.find(a => a.id_actividad === id);
-    return found || createFakeActivity(FAKE_STORES[0]?.id_tienda ?? null, FAKE_GAMES[0]?.id_juego ?? null, { id_actividad: id }); 
+    const found = existing.find(a => a.id_activity === id);
+    return found || createFakeActivity(FAKE_STORES[0]?.id_tienda ?? null, FAKE_GAMES[0]?.id_juego ?? null, { id_activity: id }, 'Fake Activity'); 
   }
 
   console.log(`ActivitiesService: Fetching activity ${id} from Supabase`);
   const { data, error } = await supabase
     .from('activities')
     .select('*')
-    .eq('id_actividad', id)
+    .eq('id_activity', id)
     .single()
 
   if (error) {

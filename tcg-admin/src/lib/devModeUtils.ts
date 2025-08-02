@@ -8,14 +8,22 @@ export function isDevModeActive(): boolean {
   // Si hay problemas de conexión, activar modo desarrollo
   const hasConnectionIssues = localStorage.getItem('connection_issues') === 'true';
   
-  // Temporalmente activar modo desarrollo por defecto
-  return true; // Cambiar a false cuando las variables de entorno estén funcionando
+  const devMode = import.meta.env.VITE_DEV_MODE === 'true';
+  const isDev = import.meta.env.DEV;
   
-  // return (
-  //   import.meta.env.VITE_DEV_MODE === 'true' ||
-  //   import.meta.env.DEV ||
-  //   hasConnectionIssues
-  // );
+  console.log('DevMode Check:', {
+    VITE_DEV_MODE: devMode,
+    import_meta_env_DEV: isDev,
+    hasConnectionIssues: hasConnectionIssues,
+    result: devMode || isDev || hasConnectionIssues
+  });
+  
+  // Temporalmente ignorar el modo desarrollo de Vite para forzar conexión real
+  return (
+    devMode ||
+    // isDev || // Comentado temporalmente
+    hasConnectionIssues
+  );
 }
 
 // Función para activar modo desarrollo cuando hay problemas de conexión
@@ -25,4 +33,17 @@ export function setConnectionIssues(hasIssues: boolean): void {
   } else {
     localStorage.removeItem('connection_issues');
   }
+}
+
+// Función para limpiar modo desarrollo y forzar conexión real
+export function clearDevMode(): void {
+  localStorage.removeItem('connection_issues');
+  localStorage.removeItem(DEV_MODE_STORAGE_KEY);
+  console.log('DevMode cleared - forcing real connection to Supabase');
+}
+
+// Función global para debugging (temporal)
+if (typeof window !== 'undefined') {
+  (window as any).clearDevMode = clearDevMode;
+  console.log('🔧 Debug: Use clearDevMode() in console to force real connection');
 } 

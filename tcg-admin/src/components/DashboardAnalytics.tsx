@@ -43,68 +43,63 @@ export default function DashboardAnalytics({ activities, games, stores }: Dashbo
   };
 
   const getActivityStats = () => {
-    const today = new Date();
-    let filteredActivities = activities.filter(activity => {
-      const activityDate = new Date(activity.fecha);
+    const now = new Date();
+    const filteredActivities = activities.filter(activity => {
+      const activityDate = new Date(activity.date);
       
       // Date range filter
       if (dateRange === 'month') {
-        if (!(activityDate.getMonth() === today.getMonth() &&
-             activityDate.getFullYear() === today.getFullYear())) {
-          return false;
-        }
+        const monthAgo = new Date(now.getFullYear(), now.getMonth() - 1, now.getDate());
+        if (activityDate < monthAgo) return false;
       } else if (dateRange === 'year') {
-        if (activityDate.getFullYear() !== today.getFullYear()) {
-          return false;
-        }
+        const yearAgo = new Date(now.getFullYear() - 1, now.getMonth(), now.getDate());
+        if (activityDate < yearAgo) return false;
       }
 
       // Game filter
-      if (filters.game && activity.id_juego !== filters.game) {
-        return false;
-      }
+      if (filters.game && activity.id_game !== filters.game) return false;
 
       // Time slot filter
       if (filters.timeSlot !== 'all') {
-        const slot = getTimeSlot(activityDate);
-        if (slot !== filters.timeSlot) {
-          return false;
-        }
+        const timeSlot = getTimeSlot(activityDate);
+        if (timeSlot !== filters.timeSlot) return false;
       }
 
       // Location filter
       if (filters.location) {
-        const store = stores.find(s => s.id_tienda === activity.id_tienda);
-        if (!store || store.direccion.comuna_region !== filters.location) {
-          return false;
-        }
+        const store = stores.find(s => s.id_store === activity.id_store);
+        if (!store || store.adress !== filters.location) return false;
       }
 
       return true;
     });
 
-    return {
-      total: filteredActivities.length,
-      upcoming: filteredActivities.filter(a => new Date(a.fecha) > today).length,
-      byGame: filteredActivities.reduce((acc, act) => {
-        if (act.id_juego) {
-          acc[act.id_juego] = (acc[act.id_juego] || 0) + 1;
-        }
-        return acc;
-      }, {} as Record<string, number>),
-      byStore: filteredActivities.reduce((acc, act) => {
-        if (act.id_tienda) {
-          acc[act.id_tienda] = (acc[act.id_tienda] || 0) + 1;
-        }
-        return acc;
-      }, {} as Record<string, number>)
-    };
+    const total = filteredActivities.length;
+    const upcoming = filteredActivities.filter(activity => new Date(activity.date) > now).length;
+
+    // Group by game
+    const byGame = filteredActivities.reduce((acc, activity) => {
+      if (activity.id_game) {
+        acc[activity.id_game] = (acc[activity.id_game] || 0) + 1;
+      }
+      return acc;
+    }, {} as Record<string, number>);
+
+    // Group by store
+    const byStore = filteredActivities.reduce((acc, activity) => {
+      if (activity.id_store) {
+        acc[activity.id_store] = (acc[activity.id_store] || 0) + 1;
+      }
+      return acc;
+    }, {} as Record<string, number>);
+
+    return { total, upcoming, byGame, byStore };
   };
 
   const stats = getActivityStats();
   const topGames = Object.entries(stats.byGame)
     .map(([id, count]) => ({
-      game: games.find(g => g.id_juego === id),
+      game: games.find(g => g.id_game === id),
       count
     }))
     .filter(item => item.game)
@@ -113,15 +108,15 @@ export default function DashboardAnalytics({ activities, games, stores }: Dashbo
 
   const topStores = Object.entries(stats.byStore)
     .map(([id, count]) => ({
-      store: stores.find(s => s.id_tienda === id),
+      store: stores.find(s => s.id_store === id),
       count
     }))
     .filter(item => item.store)
     .sort((a, b) => b.count - a.count)
     .slice(0, 5);
 
-  // Get unique locations from stores
-  const locations = Array.from(new Set(stores.map(store => store.direccion.comuna_region))).filter(Boolean);
+  // Get unique locations from stores - using adress instead of direccion.comuna_region
+  const locations = Array.from(new Set(stores.map(store => store.adress))).filter(Boolean);
 
   return (
     <div className="retro-container bg-white">
@@ -147,8 +142,8 @@ export default function DashboardAnalytics({ activities, games, stores }: Dashbo
           >
             <option value="">Todos los juegos</option>
             {games.map(game => (
-              <option key={game.id_juego} value={game.id_juego}>
-                {game.nombre}
+              <option key={game.id_game} value={game.id_game}>
+                {game.name}
               </option>
             ))}
           </select>
@@ -232,33 +227,31 @@ export default function DashboardAnalytics({ activities, games, stores }: Dashbo
           </h3>
           <div className="space-y-3">
             {topGames.map(({ game, count }) => (
-              <div key={game?.id_juego} className="flex items-center justify-between">
+              <div key={game?.id_game} className="flex items-center justify-between">
                 <div className="flex items-center">
                   <GameController className="w-4 h-4 text-purple-600 mr-2" />
-                  <span className="text-sm text-gray-700">{game?.nombre}</span>
+                  <span className="text-sm text-gray-700">{game?.name}</span>
                 </div>
-                <span className="font-press-start text-xs text-gray-600">{count}</span>
+                <span className="text-sm font-press-start text-gray-600">{count}</span>
               </div>
             ))}
           </div>
         </div>
 
-        <div>
-          <h3 className="font-press-start text-xs text-gray-800 mb-4">
-            Top Tiendas
-          </h3>
-          <div className="space-y-3">
-            {topStores.map(({ store, count }) => (
-              <div key={store?.id_tienda} className="flex items-center justify-between">
-                <div className="flex items-center">
-                  <MapPin className="w-4 h-4 text-red-600 mr-2" />
-                  <span className="text-sm text-gray-700">{store?.nombre}</span>
+        <div className="retro-container bg-gray-50 p-4">
+            <h3 className="font-press-start text-sm text-gray-800 mb-3">Tiendas Más Activas</h3>
+            <div className="space-y-3">
+              {topStores.map(({ store, count }) => (
+                <div key={store?.id_store} className="flex items-center justify-between">
+                  <div className="flex items-center">
+                    <MapPin className="w-4 h-4 text-red-600 mr-2" />
+                    <span className="text-sm text-gray-700">{store?.name_store}</span>
+                  </div>
+                  <span className="text-sm font-press-start text-gray-600">{count}</span>
                 </div>
-                <span className="font-press-start text-xs text-gray-600">{count}</span>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
-        </div>
 
         <div>
           <h3 className="font-press-start text-xs text-gray-800 mb-4">

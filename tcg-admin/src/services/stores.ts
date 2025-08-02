@@ -6,19 +6,19 @@ import { createFakeStores, createFakeStore } from '../lib/fakeData';
 export async function getStores(): Promise<Store[]> {
   if (isDevModeActive()) {
     console.log('StoresService: Dev Mode - Returning fake stores');
-    await new Promise(resolve => setTimeout(resolve, 210));
-    return createFakeStores(10); // Generate 10 fake stores
+    await new Promise(resolve => setTimeout(resolve, 150));
+    return createFakeStores(10);
   }
 
   console.log('StoresService: Fetching stores from Supabase');
   const { data, error } = await supabase
     .from('stores')
     .select('*')
-    .order('nombre')
+    .order('name_store', { ascending: true })
 
   if (error) {
     console.error('StoresService: Error fetching stores:', error);
-    throw error;
+    throw error
   }
   return data || []
 }
@@ -28,15 +28,15 @@ export async function getStore(id: string): Promise<Store | null> {
     console.log(`StoresService: Dev Mode - Returning fake store for ID: ${id}`);
     await new Promise(resolve => setTimeout(resolve, 110));
     const stores = createFakeStores(1); // Reuse generator
-    const found = stores.find(s => s.id_tienda === id);
-    return found || createFakeStore({ id_tienda: id }); 
+    const found = stores.find(s => s.id_store === id);
+    return found || createFakeStore({ id_store: id }); 
   }
 
   console.log(`StoresService: Fetching store ${id} from Supabase`);
   const { data, error } = await supabase
     .from('stores')
     .select('*')
-    .eq('id_tienda', id)
+    .eq('id_store', id)
     .single()
 
   if (error) {
@@ -54,7 +54,7 @@ export async function createStore(store: StoreInput): Promise<Store> {
     const newId = `dev-store-${crypto.randomUUID()}`;
     return createFakeStore({ 
         ...store,
-        id_tienda: newId,
+        id_store: newId,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
      } as Store);
@@ -78,14 +78,10 @@ export async function updateStore(id: string, storeUpdate: Partial<StoreInput>):
   if (isDevModeActive()) {
     console.log(`StoresService: Dev Mode - Simulating store update for ${id}:`, storeUpdate);
     await new Promise(resolve => setTimeout(resolve, 160));
-    const baseStore = createFakeStore({ id_tienda: id });
-    // Deep merge for address and horario might be needed if partial updates are expected
+    const baseStore = createFakeStore({ id_store: id });
     return { 
         ...baseStore, 
-        ...storeUpdate, 
-        // Ensure nested objects are handled if needed
-        direccion: { ...baseStore.direccion, ...(storeUpdate.direccion || {}) },
-        horario: { ...baseStore.horario, ...(storeUpdate.horario || {}) },
+        ...storeUpdate,
         updated_at: new Date().toISOString() 
     };
   }
@@ -94,7 +90,7 @@ export async function updateStore(id: string, storeUpdate: Partial<StoreInput>):
   const { data, error } = await supabase
     .from('stores')
     .update(storeUpdate)
-    .eq('id_tienda', id)
+    .eq('id_store', id)
     .select()
     .single()
 
@@ -109,14 +105,14 @@ export async function deleteStore(id: string): Promise<void> {
   if (isDevModeActive()) {
     console.log(`StoresService: Dev Mode - Simulating store deletion for ${id}`);
     await new Promise(resolve => setTimeout(resolve, 100));
-    return; // Simulate success
+    return; // Simulate successful deletion
   }
 
   console.log(`StoresService: Deleting store ${id} from Supabase`);
   const { error } = await supabase
     .from('stores')
     .delete()
-    .eq('id_tienda', id)
+    .eq('id_store', id)
 
   if (error) {
     console.error(`StoresService: Error deleting store ${id}:`, error);

@@ -12,19 +12,15 @@ let DEV_MODE_GAMES_CACHE: Game[] | null = null;
 export async function getGames(): Promise<Game[]> {
   if (isDevModeActive()) {
     console.log('GamesService: Dev Mode - Returning fake games');
-    await new Promise(resolve => setTimeout(resolve, 180));
-    if (!DEV_MODE_GAMES_CACHE) {
-      console.log('GamesService: Dev Mode - Generating and caching fake games...');
-      DEV_MODE_GAMES_CACHE = createFakeGames(25); // Generate 25 fake games
-    }
-    return [...(DEV_MODE_GAMES_CACHE || [])]; // Return a copy from cache
+    await new Promise(resolve => setTimeout(resolve, 150));
+    return createFakeGames(10);
   }
 
   console.log('GamesService: Fetching games from Supabase');
   const { data, error } = await supabase
     .from('games')
-    .select('id_juego, nombre, descripcion, categoria, edad_minima, edad_maxima, jugadores_min, jugadores_max, duracion_min, duracion_max, created_at, updated_at')
-    .order('nombre')
+    .select('id_game, name, description, category, min_age, max_age, min_players, max_players, min_duration, max_duration, created_at, updated_at')
+    .order('name', { ascending: true })
 
   if (error) {
     console.error('GamesService: Error fetching games:', error);
