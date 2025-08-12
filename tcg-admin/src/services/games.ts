@@ -1,30 +1,12 @@
 import { supabase } from '../lib/supabaseClient'
-import type { Game, StoreGame, StoreGameInput } from '../types/database'
-import { isDevModeActive } from '../lib/devModeUtils';
-import { createFakeGames, createFakeGame, createFakeStoreGame } from '../lib/fakeData';
-import { faker } from '@faker-js/faker/locale/es_MX';
-
-// Cache for dev mode fake games
-let DEV_MODE_GAMES_CACHE: Game[] | null = null;
-
-// --- Games --- 
+import type { Game } from '../types/database'
 
 export async function getGames(): Promise<Game[]> {
-  if (isDevModeActive()) {
-    console.log('GamesService: Dev Mode - Returning fake games');
-    await new Promise(resolve => setTimeout(resolve, 180));
-    if (!DEV_MODE_GAMES_CACHE) {
-      console.log('GamesService: Dev Mode - Generating and caching fake games...');
-      DEV_MODE_GAMES_CACHE = createFakeGames(25); // Generate 25 fake games
-    }
-    return [...(DEV_MODE_GAMES_CACHE || [])]; // Return a copy from cache
-  }
-
   console.log('GamesService: Fetching games from Supabase');
   const { data, error } = await supabase
     .from('games')
-    .select('id_juego, nombre, descripcion, categoria, edad_minima, edad_maxima, jugadores_min, jugadores_max, duracion_min, duracion_max, created_at, updated_at')
-    .order('nombre')
+    .select('id_game, name, description, min_age, max_age, min_players, max_players, min_duration, max_duration, category, created_at, updated_at')
+    .order('name')
 
   if (error) {
     console.error('GamesService: Error fetching games:', error);
@@ -34,19 +16,11 @@ export async function getGames(): Promise<Game[]> {
 }
 
 export async function getGame(id: string): Promise<Game | null> {
-  if (isDevModeActive()) {
-    console.log(`GamesService: Dev Mode - Returning fake game for ID: ${id}`);
-    await new Promise(resolve => setTimeout(resolve, 90));
-    const games = createFakeGames(1); // Reuse generator
-    const found = games.find(g => g.id_juego === id);
-    return found || createFakeGame({ id_juego: id }); 
-  }
-
   console.log(`GamesService: Fetching game ${id} from Supabase`);
   const { data, error } = await supabase
     .from('games')
-    .select('id_juego, nombre, descripcion, categoria, edad_minima, edad_maxima, jugadores_min, jugadores_max, duracion_min, duracion_max, created_at, updated_at')
-    .eq('id_juego', id)
+    .select('id_game, name, description, min_age, max_age, min_players, max_players, min_duration, max_duration, category, created_at, updated_at')
+    .eq('id_game', id)
     .single()
 
   if (error) {
@@ -57,19 +31,7 @@ export async function getGame(id: string): Promise<Game | null> {
   return data
 }
 
-export async function createGame(game: Omit<Game, 'id_juego' | 'created_at' | 'updated_at'>): Promise<Game> {
-  if (isDevModeActive()) {
-    console.log('GamesService: Dev Mode - Simulating game creation:', game);
-    await new Promise(resolve => setTimeout(resolve, 140));
-    const newId = `dev-game-${crypto.randomUUID()}`;
-    return createFakeGame({ 
-        ...game,
-        id_juego: newId,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-    } as Game); // Ensure type compatibility 
-  }
-
+export async function createGame(game: Omit<Game, 'id_game' | 'created_at' | 'updated_at'>): Promise<Game> {
   console.log('GamesService: Creating game in Supabase:', game);
   const { data, error } = await supabase
     .from('games')
@@ -85,18 +47,11 @@ export async function createGame(game: Omit<Game, 'id_juego' | 'created_at' | 'u
 }
 
 export async function updateGame(id: string, gameUpdate: Partial<Game>): Promise<Game> {
-  if (isDevModeActive()) {
-    console.log(`GamesService: Dev Mode - Simulating game update for ${id}:`, gameUpdate);
-    await new Promise(resolve => setTimeout(resolve, 140));
-    const baseGame = createFakeGame({ id_juego: id });
-    return { ...baseGame, ...gameUpdate, updated_at: new Date().toISOString() };
-  }
-
   console.log(`GamesService: Updating game ${id} in Supabase:`, gameUpdate);
   const { data, error } = await supabase
     .from('games')
     .update(gameUpdate)
-    .eq('id_juego', id)
+    .eq('id_game', id)
     .select()
     .single()
 
@@ -108,17 +63,11 @@ export async function updateGame(id: string, gameUpdate: Partial<Game>): Promise
 }
 
 export async function deleteGame(id: string): Promise<void> {
-  if (isDevModeActive()) {
-    console.log(`GamesService: Dev Mode - Simulating game deletion for ${id}`);
-    await new Promise(resolve => setTimeout(resolve, 90));
-    return; // Simulate success
-  }
-
   console.log(`GamesService: Deleting game ${id} from Supabase`);
   const { error } = await supabase
     .from('games')
     .delete()
-    .eq('id_juego', id)
+    .eq('id_game', id)
 
   if (error) {
     console.error(`GamesService: Error deleting game ${id}:`, error);
@@ -126,111 +75,130 @@ export async function deleteGame(id: string): Promise<void> {
   }
 }
 
-// --- Store Games --- 
+// Función para obtener juegos por tienda usando la tabla activities
+export async function getStoreGames(storeId: string): Promise<any[]> {
+  if (!storeId) {
+    console.warn('GamesService: storeId is undefined, returning empty array');
+    return [];
+  }
 
-export async function getStoreGames(storeId: string): Promise<StoreGame[]> {
-  if (isDevModeActive()) {
-    console.log(`GamesService: Dev Mode - Returning fake store games for store ${storeId}`);
-    await new Promise(resolve => setTimeout(resolve, 120));
-    
-    // Ensure the main game cache is populated. 
-    // This should ideally happen via the UI calling getGames first, 
-    // but this is a safeguard.
-    if (!DEV_MODE_GAMES_CACHE) {
-        await getGames(); // Populate the cache if it's empty
+  console.log(`GamesService: Fetching games for store ${storeId} from activities`);
+  
+  try {
+    // Obtener actividades de la tienda y luego los juegos asociados
+    const { data: activities, error: activitiesError } = await supabase
+      .from('activities')
+      .select('id_game')
+      .eq('id_store', storeId)
+      .not('id_game', 'is', null);
+
+    if (activitiesError) {
+      console.error(`GamesService: Error fetching activities for store ${storeId}:`, activitiesError);
+      throw activitiesError;
     }
-    
-    const allFakeGames = DEV_MODE_GAMES_CACHE || [];
-    if (allFakeGames.length === 0) {
-      console.warn(`GamesService: Dev Mode - No fake games in cache for store ${storeId}`);
+
+    if (!activities || activities.length === 0) {
       return [];
     }
-    
-    // Select a random subset of games from the cache for this store's inventory
-    const inventorySize = faker.number.int({ min: 2, max: Math.min(15, allFakeGames.length) }); // Max 15 items or total games
-    const gamesForStore = faker.helpers.shuffle(allFakeGames).slice(0, inventorySize);
 
-    return gamesForStore.map((game: Game) => createFakeStoreGame(storeId, game.id_juego));
+    // Obtener los IDs únicos de juegos
+    const gameIds = [...new Set(activities.map(a => a.id_game).filter(Boolean))];
+
+    if (gameIds.length === 0) {
+      return [];
+    }
+
+    // Obtener los juegos
+    const { data: games, error: gamesError } = await supabase
+      .from('games')
+      .select('id_game, name, description, min_age, max_age, min_players, max_players, min_duration, max_duration, category, created_at, updated_at')
+      .in('id_game', gameIds);
+
+    if (gamesError) {
+      console.error(`GamesService: Error fetching games for store ${storeId}:`, gamesError);
+      throw gamesError;
+    }
+
+    return games || [];
+  } catch (error) {
+    console.error(`GamesService: Error in getStoreGames for store ${storeId}:`, error);
+    throw error;
   }
-
-  console.log(`GamesService: Fetching store games for store ${storeId} from Supabase`);
-  const { data, error } = await supabase
-    .from('store_games')
-    .select('*')
-    .eq('id_tienda', storeId)
-
-  if (error) {
-    console.error(`GamesService: Error fetching store games for store ${storeId}:`, error);
-    throw error
-  }
-  return data || []
 }
 
-export async function addGameToStore(storeGame: StoreGameInput): Promise<StoreGame> {
-   if (isDevModeActive()) {
-    console.log('GamesService: Dev Mode - Simulating adding game to store:', storeGame);
-    await new Promise(resolve => setTimeout(resolve, 100));
-    return createFakeStoreGame(storeGame.id_tienda, storeGame.id_juego, storeGame);
-  }
-
-  console.log('GamesService: Adding game to store in Supabase:', storeGame);
-  const { data, error } = await supabase
-    .from('store_games')
-    .insert([storeGame])
-    .select()
-    .single()
-
-  if (error) {
-     console.error('GamesService: Error adding game to store:', error);
-     throw error
-  }
-  return data
-}
-
-export async function updateStoreGame(
-  storeId: string,
-  gameId: string,
-  updates: Partial<{ stock: number; precio: number }> // Allow partial updates
-): Promise<StoreGame> {
-  if (isDevModeActive()) {
-    console.log(`GamesService: Dev Mode - Simulating update for store ${storeId}, game ${gameId}:`, updates);
-    await new Promise(resolve => setTimeout(resolve, 100));
-    const baseStoreGame = createFakeStoreGame(storeId, gameId);
-    return { ...baseStoreGame, ...updates };
-  }
+// Función para agregar un juego a una tienda (creando una actividad)
+export async function addGameToStore(storeId: string, gameId: string): Promise<any> {
+  console.log(`GamesService: Adding game ${gameId} to store ${storeId} via activity`);
   
-  console.log(`GamesService: Updating store game for store ${storeId}, game ${gameId}:`, updates);
-  const { data, error } = await supabase
-    .from('store_games')
-    .update(updates)
-    .eq('id_tienda', storeId)
-    .eq('id_juego', gameId)
-    .select()
-    .single()
+  try {
+    // Crear una actividad que conecte la tienda con el juego
+    const { data, error } = await supabase
+      .from('activities')
+      .insert([{
+        id_store: storeId,
+        id_game: gameId,
+        date: new Date().toISOString().split('T')[0], // fecha actual
+        reference_link: null,
+        adress_activity: '' // dirección de la actividad
+      }])
+      .select()
+      .single();
 
-  if (error) {
-    console.error(`GamesService: Error updating store game for store ${storeId}, game ${gameId}:`, error);
-    throw error
+    if (error) {
+      console.error(`GamesService: Error adding game ${gameId} to store ${storeId}:`, error);
+      throw error;
+    }
+
+    return data;
+  } catch (error) {
+    console.error(`GamesService: Error in addGameToStore for store ${storeId}, game ${gameId}:`, error);
+    throw error;
   }
-  return data
 }
 
+// Función para remover un juego de una tienda (eliminando la actividad)
 export async function removeGameFromStore(storeId: string, gameId: string): Promise<void> {
-   if (isDevModeActive()) {
-    console.log(`GamesService: Dev Mode - Simulating removing game ${gameId} from store ${storeId}`);
-    await new Promise(resolve => setTimeout(resolve, 90));
-    return; // Simulate success
-  }
+  console.log(`GamesService: Removing game ${gameId} from store ${storeId} via activity deletion`);
   
-  console.log(`GamesService: Removing game ${gameId} from store ${storeId} in Supabase`);
-  const { error } = await supabase
-    .from('store_games')
-    .delete()
-    .eq('id_tienda', storeId)
-    .eq('id_juego', gameId)
+  try {
+    const { error } = await supabase
+      .from('activities')
+      .delete()
+      .eq('id_store', storeId)
+      .eq('id_game', gameId);
 
-  if (error) {
-     console.error(`GamesService: Error removing game ${gameId} from store ${storeId}:`, error);
-     throw error
+    if (error) {
+      console.error(`GamesService: Error removing game ${gameId} from store ${storeId}:`, error);
+      throw error;
+    }
+  } catch (error) {
+    console.error(`GamesService: Error in removeGameFromStore for store ${storeId}, game ${gameId}:`, error);
+    throw error;
+  }
+}
+
+// Función para actualizar información de un juego en una tienda
+export async function updateStoreGame(storeId: string, gameId: string, updates: any): Promise<any> {
+  console.log(`GamesService: Updating game ${gameId} in store ${storeId}:`, updates);
+  
+  try {
+    // Como no hay tabla store_games, actualizamos la actividad
+    const { data, error } = await supabase
+      .from('activities')
+      .update(updates)
+      .eq('id_store', storeId)
+      .eq('id_game', gameId)
+      .select()
+      .single();
+
+    if (error) {
+      console.error(`GamesService: Error updating game ${gameId} in store ${storeId}:`, error);
+      throw error;
+    }
+
+    return data;
+  } catch (error) {
+    console.error(`GamesService: Error in updateStoreGame for store ${storeId}, game ${gameId}:`, error);
+    throw error;
   }
 }

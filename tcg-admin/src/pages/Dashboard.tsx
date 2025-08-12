@@ -50,7 +50,7 @@ export default function Dashboard() {
   };
 
   const handleEventClick = (event: Activity) => {
-    navigate(`/activities/${event.id_actividad}`);
+    navigate(`/activities/${event.id_activity}`);
   };
 
   if (!session) return null;
@@ -79,8 +79,8 @@ export default function Dashboard() {
                 Próximas Actividades
               </h2>
               <EventList
-                events={activities.filter(activity => new Date(activity.fecha) >= new Date())
-                                 .sort((a, b) => new Date(a.fecha).getTime() - new Date(b.fecha).getTime())}
+                events={activities.filter(activity => new Date(activity.date) >= new Date())
+                                 .sort((a, b) => new Date(activity.date).getTime() - new Date(activity.date).getTime())}
                 onEventClick={handleEventClick}
               />
             </div>

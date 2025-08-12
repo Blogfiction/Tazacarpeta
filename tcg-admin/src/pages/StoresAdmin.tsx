@@ -7,24 +7,18 @@ import {
   ChevronLeft, ChevronRight as ChevronRightIcon
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { Store, StoreInput, Direccion, HorarioTienda, Game, StoreGameInput } from '../types/database';
+import { Store, StoreInput, Game } from '../types/database';
 import { getStores, createStore, updateStore, deleteStore } from '../services/stores';
 import { getGames } from '../services/games';
 import { addGameToStore, removeGameFromStore, getStoreGames, updateStoreGame } from '../services/games';
 import Modal from '../components/Modal';
 import LoadingScreen from '../components/LoadingScreen';
-import PlacesAutocomplete from '../components/PlacesAutocomplete';
 
-const DIAS_SEMANA = ['lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado', 'domingo'];
-const PLANES = ['básico', 'premium', 'enterprise'];
 
-const HORARIO_INICIAL: HorarioTienda = DIAS_SEMANA.reduce((acc, dia) => ({
-  ...acc,
-  [dia]: { apertura: '09:00', cierre: '18:00' }
-}), {} as HorarioTienda);
+
 
 interface StoreGameFormData {
-  id_juego: string;
+  id_game: string;
   stock: number;
   precio: number;
 }
@@ -38,33 +32,23 @@ function renderStoreItem(
   handleDelete: (id: string) => void,
   handleRemoveGame: (gameId: string) => void,
 ) {
-  const dayHours = store.horario.lunes;
-  
-  const fullAddress = `${store.direccion.calle} ${store.direccion.numero}, ${store.direccion.ciudad}, ${store.direccion.estado} CP ${store.direccion.cp}`;
+  const fullAddress = store.adress;
   
   const storeGamesList = Array.from(storeGames.entries()).map(([gameId, gameData]) => {
-    const gameInfo = games.find(g => g.id_juego === gameId);
+    const gameInfo = games.find(g => g.id_game === gameId);
     return {
       id: gameId,
-      nombre: gameInfo?.nombre || 'Juego desconocido',
+      nombre: gameInfo?.name || 'Juego desconocido',
       stock: gameData.stock,
       precio: gameData.precio
     };
   });
   
-  const getPlanBadgeClass = (plan: string) => {
-    switch(plan.toLowerCase()) {
-      case 'premium': return 'premium';
-      case 'enterprise': return 'enterprise';
-      default: return 'basic';
-    }
-  };
-  
   return (
-    <li key={store.id_tienda} className="mb-6">
+            <li key={store.id_store} className="mb-6">
       <div className="store-card">
         <h3 className="store-title">
-          {store.nombre}
+          {store.name_store}
         </h3>
         
         <div className="store-detail">
@@ -80,20 +64,12 @@ function renderStoreItem(
           </a>
         </div>
         
-        <div className="store-hours">
-          <h4 className="store-hours-title">HORARIO DE ATENCIÓN</h4>
-          <div className="store-hours-grid">
-            {DIAS_SEMANA.map(dia => (
-              <div key={dia} className="store-day">
-                <strong className="capitalize">{dia}:</strong> {store.horario[dia].apertura} - {store.horario[dia].cierre}
-              </div>
-            ))}
-          </div>
-        </div>
-        
-        <div className={`store-plan-badge ${getPlanBadgeClass(store.plan)}`}>
-          <Coins className="h-3 w-3 mr-1" />
-          Plan {store.plan}
+        <div className="store-info">
+          <p><strong>Teléfono:</strong> {store.phone || 'No disponible'}</p>
+          <p><strong>Email:</strong> {store.email || 'No disponible'}</p>
+          {store.latitude && store.longitude && (
+            <p><strong>Ubicación:</strong> {store.latitude.toFixed(4)}, {store.longitude.toFixed(4)}</p>
+          )}
         </div>
         
         {storeGamesList.length > 0 && (
@@ -145,7 +121,7 @@ function renderStoreItem(
           </button>
           
           <button
-            onClick={() => handleDelete(store.id_tienda)}
+            onClick={() => handleDelete(store.id_store)}
             className="store-action-button delete"
             aria-label="Eliminar tienda"
           >
@@ -174,22 +150,15 @@ export default function StoresAdmin() {
   const [selectedStore, setSelectedStore] = useState<Store | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [formData, setFormData] = useState<StoreInput>({
-    nombre: '',
-    direccion: {
-      calle: '',
-      numero: '',
-      ciudad: '',
-      estado: '',
-      cp: '',
-      place_id: undefined,
-      lat: undefined,
-      lng: undefined
-    },
-    horario: HORARIO_INICIAL,
-    plan: 'básico'
+    name_store: '',
+    adress: '',
+    phone: undefined,
+    email: '',
+    latitude: undefined,
+    longitude: undefined
   });
   const [gameFormData, setGameFormData] = useState<StoreGameFormData>({
-    id_juego: '',
+    id_game: '',
     stock: 0,
     precio: 0
   });
@@ -214,20 +183,20 @@ export default function StoresAdmin() {
       // Promise.all para cargar los juegos de todas las tiendas en paralelo
       await Promise.all(data.map(async (store) => {
         try {
-          const storeGamesData = await getStoreGames(store.id_tienda);
+          const storeGamesData = await getStoreGames(store.id_store);
           const gamesMapForStore = new Map<string, StoreGameFormData>();
           
           storeGamesData.forEach(sg => {
-            gamesMapForStore.set(sg.id_juego, {
-              id_juego: sg.id_juego,
+            gamesMapForStore.set(sg.id_game, {
+              id_game: sg.id_game,
               stock: sg.stock,
               precio: sg.precio
             });
           });
           
-          gamesMap.set(store.id_tienda, gamesMapForStore);
+          gamesMap.set(store.id_store, gamesMapForStore);
         } catch (err) {
-          console.error(`Error loading games for store ${store.id_tienda}:`, err);
+          console.error(`Error loading games for store ${store.id_store}:`, err);
         }
       }));
       
@@ -253,8 +222,8 @@ export default function StoresAdmin() {
       const data = await getStoreGames(storeId);
       const gamesMap = new Map();
       data.forEach(sg => {
-        gamesMap.set(sg.id_juego, {
-          id_juego: sg.id_juego,
+        gamesMap.set(sg.id_game, {
+          id_game: sg.id_game,
           stock: sg.stock,
           precio: sg.precio
         });
@@ -276,7 +245,7 @@ export default function StoresAdmin() {
     
     try {
       if (currentStore) {
-        await updateStore(currentStore.id_tienda, formData);
+        await updateStore(currentStore.id_store, formData);
       } else {
         await createStore(formData);
       }
@@ -288,69 +257,23 @@ export default function StoresAdmin() {
     }
   };
 
-  const handlePlaceSelect = (place: google.maps.places.PlaceResult) => {
-    if (place.formatted_address) {
-      const updatedFormData = JSON.parse(JSON.stringify(formData));
-      
-      const addressComponents = place.address_components || [];
-      let streetNumber = '';
-      let route = '';
-      let locality = '';
-      let region = '';
-      let postalCode = '';
 
-      addressComponents.forEach(component => {
-        const types = component.types;
-        if (types.includes('street_number')) {
-          streetNumber = component.long_name;
-        } else if (types.includes('route')) {
-          route = component.long_name;
-        } else if (types.includes('locality')) {
-          locality = component.long_name;
-        } else if (types.includes('administrative_area_level_1')) {
-          region = component.long_name;
-        } else if (types.includes('postal_code')) {
-          postalCode = component.long_name;
-        }
-      });
-
-      updatedFormData.direccion = {
-        ...updatedFormData.direccion,
-        calle: route || updatedFormData.direccion.calle,
-        numero: streetNumber || updatedFormData.direccion.numero,
-        ciudad: locality || updatedFormData.direccion.ciudad,
-        estado: region || updatedFormData.direccion.estado,
-        cp: postalCode || updatedFormData.direccion.cp,
-        place_id: place.place_id,
-      };
-      
-      if (place.geometry && place.geometry.location) {
-        updatedFormData.direccion.lat = place.geometry.location.lat();
-        updatedFormData.direccion.lng = place.geometry.location.lng();
-      }
-
-      setFormData(updatedFormData);
-    }
-  };
 
   const handleGameSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedStore) return;
 
     try {
-      if (storeGames.has(gameFormData.id_juego)) {
+      if (storeGames.has(gameFormData.id_game)) {
         await updateStoreGame(
-          selectedStore.id_tienda,
-          gameFormData.id_juego,
+          selectedStore.id_store,
+          gameFormData.id_game,
           gameFormData
         );
       } else {
-        await addGameToStore({
-          id_tienda: selectedStore.id_tienda,
-          ...gameFormData
-        });
+        await addGameToStore(selectedStore.id_store, gameFormData.id_game);
       }
-      await loadStoreGames(selectedStore.id_tienda);
+      await loadStoreGames(selectedStore.id_store);
       setIsGameModalOpen(false);
       resetGameForm();
     } catch (err) {
@@ -373,27 +296,29 @@ export default function StoresAdmin() {
     if (!selectedStore || !confirm('¿Estás seguro de que deseas eliminar este juego de la tienda?')) return;
 
     try {
-      await removeGameFromStore(selectedStore.id_tienda, gameId);
-      await loadStoreGames(selectedStore.id_tienda);
+      await removeGameFromStore(selectedStore.id_store, gameId);
+      await loadStoreGames(selectedStore.id_store);
     } catch (err) {
       setError('Error al eliminar el juego de la tienda');
     }
   };
 
-  const openEditModal = (store: Store) => {
+    const openEditModal = (store: Store) => {
     setCurrentStore(store);
     setFormData({
-      nombre: store.nombre,
-      direccion: store.direccion,
-      horario: store.horario,
-      plan: store.plan
+      name_store: store.name_store,
+      adress: store.adress,
+      phone: store.phone || undefined,
+      email: store.email || undefined,
+      latitude: store.latitude || undefined,
+      longitude: store.longitude || undefined
     });
     setIsModalOpen(true);
   };
 
   const openGameModal = (store: Store) => {
     setSelectedStore(store);
-    loadStoreGames(store.id_tienda);
+    loadStoreGames(store.id_store);
     resetGameForm();
     setIsGameModalOpen(true);
   };
@@ -401,31 +326,24 @@ export default function StoresAdmin() {
   const resetForm = () => {
     setCurrentStore(null);
     setFormData({
-      nombre: '',
-      direccion: {
-        calle: '',
-        numero: '',
-        ciudad: '',
-        estado: '',
-        cp: '',
-        place_id: undefined,
-        lat: undefined,
-        lng: undefined
-      },
-      horario: HORARIO_INICIAL,
-      plan: 'básico'
+      name_store: '',
+      adress: '',
+      phone: undefined,
+      email: '',
+      latitude: undefined,
+      longitude: undefined
     });
   };
 
   const resetGameForm = () => {
     setGameFormData({
-      id_juego: '',
+      id_game: '',
       stock: 0,
       precio: 0
     });
   };
 
-  const hasStoreGames = selectedStore ? (storeGamesMap.get(selectedStore.id_tienda)?.size ?? 0) > 0 : false;
+  const hasStoreGames = selectedStore ? (storeGamesMap.get(selectedStore.id_store)?.size ?? 0) > 0 : false;
 
   if (!session) return null;
 
@@ -507,7 +425,7 @@ export default function StoresAdmin() {
           <>
             <ul>
               {paginatedStores.map((store) => {
-                const storeGamesData = storeGamesMap.get(store.id_tienda) || new Map();
+                const storeGamesData = storeGamesMap.get(store.id_store) || new Map();
                 
                 return renderStoreItem(
                   store,
@@ -548,7 +466,7 @@ export default function StoresAdmin() {
             setSelectedStore(null);
             resetGameForm();
           }}
-          title={selectedStore ? `Juegos de ${selectedStore.nombre}` : "Gestionar Juegos"}
+          title={selectedStore ? `Juegos de ${selectedStore.name_store}` : "Gestionar Juegos"}
         >
           <div className="space-y-6">
             <form onSubmit={handleGameSubmit} className="space-y-4">
@@ -560,16 +478,16 @@ export default function StoresAdmin() {
                       Juego
                     </label>
                     <select
-                      value={gameFormData.id_juego}
-                      onChange={(e) => setGameFormData({ ...gameFormData, id_juego: e.target.value })}
+                      value={gameFormData.id_game}
+                      onChange={(e) => setGameFormData({ ...gameFormData, id_game: e.target.value })}
                       className="retro-input w-full"
                       required
                     >
                       <option value="">Selecciona un juego</option>
                       {games.map((game) => (
-                        <option key={game.id_juego} value={game.id_juego}>
-                          {game.nombre}
-                        </option>
+                                          <option key={game.id_game} value={game.id_game}>
+                    {game.name}
+                  </option>
                       ))}
                     </select>
                   </div>
@@ -608,9 +526,9 @@ export default function StoresAdmin() {
                     <button
                       type="submit"
                       className="retro-button w-full"
-                      disabled={!gameFormData.id_juego}
+                      disabled={!gameFormData.id_game}
                     >
-                      {storeGames.has(gameFormData.id_juego) ? 'Actualizar' : 'Agregar'} Juego
+                      {storeGames.has(gameFormData.id_game) ? 'Actualizar' : 'Agregar'} Juego
                     </button>
                   </div>
                 </div>
@@ -624,12 +542,12 @@ export default function StoresAdmin() {
                   </h3>
                   <div className="space-y-3">
                     {Array.from(storeGames.entries()).map(([gameId, gameData]) => {
-                      const gameInfo = games.find(g => g.id_juego === gameId);
+                      const gameInfo = games.find(g => g.id_game === gameId);
                       
                       return (
                         <div key={gameId} className="store-game-item">
                           <div className="flex-1">
-                            <div className="store-game-name">{gameInfo?.nombre || 'Juego desconocido'}</div>
+                            <div className="store-game-name">{gameInfo?.name || 'Juego desconocido'}</div>
                             <div className="store-game-details mt-1">
                               <div className="store-game-detail">
                                 <Package className="h-3 w-3 mr-1" />
@@ -685,8 +603,8 @@ export default function StoresAdmin() {
               <input
                 type="text"
                 required
-                value={formData.nombre}
-                onChange={(e) => setFormData({ ...formData, nombre: e.target.value })}
+                value={formData.name_store}
+                onChange={(e) => setFormData({ ...formData, name_store: e.target.value })}
                 className="retro-input"
                 placeholder="Nombre de la tienda"
               />
@@ -696,158 +614,82 @@ export default function StoresAdmin() {
               <h3 className="font-medium text-gray-900 text-sm">Dirección</h3>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Buscar dirección
+                  Dirección completa
                 </label>
-                <PlacesAutocomplete
-                  onPlaceSelect={handlePlaceSelect}
-                  defaultValue={`${formData.direccion.calle} ${formData.direccion.numero}, ${formData.direccion.ciudad}`}
+                <input
+                  type="text"
+                  required
+                  value={formData.adress}
+                  onChange={(e) => setFormData({ ...formData, adress: e.target.value })}
+                  className="retro-input"
+                  placeholder="Dirección completa de la tienda"
                 />
               </div>
+            </div>
+
+            <div className="space-y-4">
+              <h3 className="font-medium text-gray-900 text-sm">Contacto</h3>
               <div className="grid grid-cols-1 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Calle
+                    Teléfono
                   </label>
                   <input
-                    type="text"
-                    required
-                    value={formData.direccion.calle}
-                    onChange={(e) => setFormData({
-                      ...formData,
-                      direccion: { ...formData.direccion, calle: e.target.value }
-                    })}
+                    type="tel"
+                    value={formData.phone || ''}
+                    onChange={(e) => setFormData({ ...formData, phone: e.target.value ? parseInt(e.target.value) : undefined })}
                     className="retro-input"
-                    placeholder="Nombre de la calle"
+                    placeholder="Número de teléfono"
                   />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Número
+                    Email
                   </label>
                   <input
-                    type="text"
-                    required
-                    value={formData.direccion.numero}
-                    onChange={(e) => setFormData({
-                      ...formData,
-                      direccion: { ...formData.direccion, numero: e.target.value }
-                    })}
+                    type="email"
+                    value={formData.email || ''}
+                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                     className="retro-input"
-                    placeholder="Número exterior"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Ciudad
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={formData.direccion.ciudad}
-                    onChange={(e) => setFormData({
-                      ...formData,
-                      direccion: { ...formData.direccion, ciudad: e.target.value }
-                    })}
-                    className="retro-input"
-                    placeholder="Ciudad"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Estado
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={formData.direccion.estado}
-                    onChange={(e) => setFormData({
-                      ...formData,
-                      direccion: { ...formData.direccion, estado: e.target.value }
-                    })}
-                    className="retro-input"
-                    placeholder="Estado"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Código Postal
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={formData.direccion.cp}
-                    onChange={(e) => setFormData({
-                      ...formData,
-                      direccion: { ...formData.direccion, cp: e.target.value }
-                    })}
-                    className="retro-input"
-                    placeholder="CP"
+                    placeholder="Correo electrónico"
                   />
                 </div>
               </div>
             </div>
 
             <div className="space-y-4">
-              <h3 className="font-medium text-gray-900 text-sm">Horario</h3>
-              <div className="grid grid-cols-1 gap-4">
-                {DIAS_SEMANA.map((dia) => (
-                  <div key={dia} className="flex flex-col space-y-2 sm:flex-row sm:space-y-0 sm:space-x-4 sm:items-center">
-                    <span className="w-24 text-sm text-gray-700 capitalize">{dia}</span>
-                    <div className="flex-1 grid grid-cols-2 gap-2">
-                      <div>
-                        <label className="block text-xs text-gray-500 mb-1">Apertura</label>
-                        <input
-                          type="time"
-                          required
-                          value={formData.horario[dia].apertura}
-                          onChange={(e) => setFormData({
-                            ...formData,
-                            horario: {
-                              ...formData.horario,
-                              [dia]: { ...formData.horario[dia], apertura: e.target.value }
-                            }
-                          })}
-                          className="retro-input"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-xs text-gray-500 mb-1">Cierre</label>
-                        <input
-                          type="time"
-                          required
-                          value={formData.horario[dia].cierre}
-                          onChange={(e) => setFormData({
-                            ...formData,
-                            horario: {
-                              ...formData.horario,
-                              [dia]: { ...formData.horario[dia], cierre: e.target.value }
-                            }
-                          })}
-                          className="retro-input"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                ))}
+              <h3 className="font-medium text-gray-900 text-sm">Ubicación</h3>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Latitud
+                  </label>
+                  <input
+                    type="number"
+                    step="any"
+                    value={formData.latitude || ''}
+                    onChange={(e) => setFormData({ ...formData, latitude: e.target.value ? parseFloat(e.target.value) : undefined })}
+                    className="retro-input"
+                    placeholder="Latitud"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Longitud
+                  </label>
+                  <input
+                    type="number"
+                    step="any"
+                    value={formData.longitude || ''}
+                    onChange={(e) => setFormData({ ...formData, longitude: e.target.value ? parseFloat(e.target.value) : undefined })}
+                    className="retro-input"
+                    placeholder="Longitud"
+                  />
+                </div>
               </div>
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Plan
-              </label>
-              <select
-                value={formData.plan}
-                onChange={(e) => setFormData({ ...formData, plan: e.target.value })}
-                className="retro-input"
-              >
-                {PLANES.map((plan) => (
-                  <option key={plan} value={plan}>
-                    {plan.charAt(0).toUpperCase() + plan.slice(1)}
-                  </option>
-                ))}
-              </select>
-            </div>
+
 
             <div className="modal-footer">
               <button

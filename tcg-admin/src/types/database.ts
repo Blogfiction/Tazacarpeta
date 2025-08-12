@@ -1,55 +1,50 @@
 export interface Game {
-  id_juego: string;
-  nombre: string;
-  descripcion: string;
-  categoria: string;
-  edad_minima: number;
-  edad_maxima: number | null;
-  jugadores_min: number;
-  jugadores_max: number;
-  duracion_min: number;
-  duracion_max: number;
+  id_game: string;
+  name: string;
+  description: string;
+  min_age: number;
+  max_age: number | null;
+  min_players: number;
+  max_players: number;
+  min_duration: number;
+  max_duration: number;
+  category: string;
   created_at: string;
   updated_at: string;
 }
 
 export interface GameInput {
-  nombre: string;
-  descripcion: string;
-  categoria: string;
-  edad_minima: number;
-  edad_maxima?: number | null;
-  jugadores_min: number;
-  jugadores_max: number;
-  duracion_min: number;
-  duracion_max: number;
+  name: string;
+  description: string;
+  min_age: number;
+  max_age?: number;
+  min_players: number;
+  max_players: number;
+  min_duration: number;
+  max_duration: number;
+  category: string;
 }
 
 export interface Activity {
-  id_actividad: string;
-  id_tienda: string | null;
-  id_juego: string | null;
-  nombre: string;
-  fecha: string;
-  ubicacion: string;
-  enlace_referencia: string | null;
+  id_activity: string;
+  name_activity: string;
+  id_store: string;
+  id_game: string;
+  adress_activity: string;
+  date: string;
+  reference_link: string | null;
   created_at: string;
   updated_at: string;
-  place_id?: string;
-  lat?: number;
-  lng?: number;
 }
 
 export interface ActivityInput {
-  id_tienda?: string;
-  id_juego?: string;
-  nombre: string;
-  fecha: string;
-  ubicacion: string;
-  enlace_referencia?: string;
-  place_id?: string;
-  lat?: number;
-  lng?: number;
+  name_activity: string;
+  id_store: string;
+  id_game: string;
+  adress_activity: string;
+  date: string;
+  reference_link?: string;
+  created_at?: string;
 }
 
 export interface Direccion {
@@ -71,20 +66,22 @@ export interface HorarioTienda {
 }
 
 export interface Store {
-  id_tienda: string;
-  nombre: string;
-  direccion: Direccion;
-  horario: HorarioTienda;
-  plan: string;
-  created_at: string;
-  updated_at: string;
+  id_store: string;
+  name_store: string;
+  adress: string;
+  phone: number | null;
+  email: string | null;
+  latitude: number | null;
+  longitude: number | null;
 }
 
 export interface StoreInput {
-  nombre: string;
-  direccion: Direccion;
-  horario: HorarioTienda;
-  plan: string;
+  name_store: string;
+  adress: string;
+  phone?: number;
+  email?: string;
+  latitude?: number;
+  longitude?: number;
 }
 
 export interface Profile {
@@ -123,7 +120,6 @@ export interface StoreGameInput {
   stock: number;
   precio: number;
 }
-
 // Added Report type based on documentation
 export interface Report {
   id_informe: string;

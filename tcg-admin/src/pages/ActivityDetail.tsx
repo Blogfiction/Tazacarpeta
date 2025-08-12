@@ -37,15 +37,15 @@ export default function ActivityDetail() {
         setActivity(data);
         
         // Cargar juego y tienda relacionados si existen
-        if (data.id_juego) {
+        if (data.id_game) {
           const gamesData = await getGames();
-          const gameData = gamesData.find(g => g.id_juego === data.id_juego);
+          const gameData = gamesData.find(g => g.id_game === data.id_game);
           if (gameData) setGame(gameData);
         }
         
-        if (data.id_tienda) {
+        if (data.id_store) {
           const storesData = await getStores();
-          const storeData = storesData.find(s => s.id_tienda === data.id_tienda);
+          const storeData = storesData.find(s => s.id_store === data.id_store);
           if (storeData) setStore(storeData);
         }
       }
@@ -57,7 +57,7 @@ export default function ActivityDetail() {
   }
 
   const isPastEvent = (activity: Activity) => {
-    const eventDate = new Date(activity.fecha);
+    const eventDate = new Date(activity.date);
     const now = new Date();
     return eventDate < now;
   };
@@ -78,7 +78,7 @@ export default function ActivityDetail() {
 
   // Comprobar si el evento es hoy
   const isToday = activity ? (() => {
-    const activityDate = new Date(activity.fecha);
+    const activityDate = new Date(activity.date);
     const today = new Date();
     return (
       activityDate.getDate() === today.getDate() &&
@@ -118,26 +118,26 @@ export default function ActivityDetail() {
             )}
             
             <h1 className="event-title text-xl">
-              {activity.nombre}
+              {activity.name_activity}
             </h1>
 
             <div className="mb-6">
               <div className="event-detail">
                 <Calendar className="event-detail-icon text-yellow-600" />
                 <span className="event-detail-text">
-                  {formatDate(activity.fecha)}
+                  {formatDate(activity.date)}
                 </span>
               </div>
 
               <div className="event-detail">
                 <MapPin className="event-detail-icon text-red-600" />
                 <a 
-                  href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(activity.ubicacion)}`}
+                  href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(activity.adress_activity)}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="event-detail-text hover:text-blue-600 transition-colors flex items-center"
                 >
-                  {activity.ubicacion}
+                  {activity.adress_activity}
                   <LinkIcon className="w-3 h-3 ml-1 inline" />
                 </a>
               </div>
@@ -146,23 +146,23 @@ export default function ActivityDetail() {
                 {game && (
                   <div className="event-tag game-tag">
                     <GameController className="h-3 w-3 mr-1" />
-                    {game.nombre}
+                    {game.name}
                   </div>
                 )}
                 
                 {store && (
                   <div className="event-tag store-tag">
                     <Store className="h-3 w-3 mr-1" />
-                    {store.nombre}
+                    {store.name_store}
                   </div>
                 )}
               </div>
 
-              {activity.enlace_referencia && (
+              {activity.reference_link && (
                 <div className="mt-4 pt-4 border-t-2 border-gray-200">
                   <h3 className="font-press-start text-sm mb-2">Enlaces</h3>
                   <a
-                    href={activity.enlace_referencia}
+                    href={activity.reference_link}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="retro-button text-xs flex items-center justify-center w-full"
@@ -182,7 +182,7 @@ export default function ActivityDetail() {
                 Ver todas las actividades
               </button>
               <button
-                onClick={() => navigate(`/activities?edit=${activity.id_actividad}`)}
+                onClick={() => navigate(`/activities?edit=${activity.id_activity}`)}
                 className="retro-button bg-blue-600 text-xs"
               >
                 Editar actividad

@@ -45,7 +45,7 @@ export default function DashboardAnalytics({ activities, games, stores }: Dashbo
   const getActivityStats = () => {
     const today = new Date();
     let filteredActivities = activities.filter(activity => {
-      const activityDate = new Date(activity.fecha);
+      const activityDate = new Date(activity.date);
       
       // Date range filter
       if (dateRange === 'month') {
@@ -60,7 +60,7 @@ export default function DashboardAnalytics({ activities, games, stores }: Dashbo
       }
 
       // Game filter
-      if (filters.game && activity.id_juego !== filters.game) {
+      if (filters.game && activity.id_game !== filters.game) {
         return false;
       }
 
@@ -74,8 +74,8 @@ export default function DashboardAnalytics({ activities, games, stores }: Dashbo
 
       // Location filter
       if (filters.location) {
-        const store = stores.find(s => s.id_tienda === activity.id_tienda);
-        if (!store || store.direccion.comuna_region !== filters.location) {
+        const store = stores.find(s => s.id_store === activity.id_store);
+        if (!store || store.adress !== filters.location) {
           return false;
         }
       }
@@ -85,16 +85,16 @@ export default function DashboardAnalytics({ activities, games, stores }: Dashbo
 
     return {
       total: filteredActivities.length,
-      upcoming: filteredActivities.filter(a => new Date(a.fecha) > today).length,
+      upcoming: filteredActivities.filter(a => new Date(a.date) > today).length,
       byGame: filteredActivities.reduce((acc, act) => {
-        if (act.id_juego) {
-          acc[act.id_juego] = (acc[act.id_juego] || 0) + 1;
+        if (act.id_game) {
+          acc[act.id_game] = (acc[act.id_game] || 0) + 1;
         }
         return acc;
       }, {} as Record<string, number>),
       byStore: filteredActivities.reduce((acc, act) => {
-        if (act.id_tienda) {
-          acc[act.id_tienda] = (acc[act.id_tienda] || 0) + 1;
+        if (act.id_store) {
+          acc[act.id_store] = (acc[act.id_store] || 0) + 1;
         }
         return acc;
       }, {} as Record<string, number>)
@@ -104,7 +104,7 @@ export default function DashboardAnalytics({ activities, games, stores }: Dashbo
   const stats = getActivityStats();
   const topGames = Object.entries(stats.byGame)
     .map(([id, count]) => ({
-      game: games.find(g => g.id_juego === id),
+      game: games.find(g => g.id_game === id),
       count
     }))
     .filter(item => item.game)
@@ -113,7 +113,7 @@ export default function DashboardAnalytics({ activities, games, stores }: Dashbo
 
   const topStores = Object.entries(stats.byStore)
     .map(([id, count]) => ({
-      store: stores.find(s => s.id_tienda === id),
+      store: stores.find(s => s.id_store === id),
       count
     }))
     .filter(item => item.store)
@@ -121,7 +121,7 @@ export default function DashboardAnalytics({ activities, games, stores }: Dashbo
     .slice(0, 5);
 
   // Get unique locations from stores
-  const locations = Array.from(new Set(stores.map(store => store.direccion.comuna_region))).filter(Boolean);
+  const locations = Array.from(new Set(stores.map(store => store.adress))).filter(Boolean);
 
   return (
     <div className="retro-container bg-white">
@@ -147,8 +147,8 @@ export default function DashboardAnalytics({ activities, games, stores }: Dashbo
           >
             <option value="">Todos los juegos</option>
             {games.map(game => (
-              <option key={game.id_juego} value={game.id_juego}>
-                {game.nombre}
+              <option key={game.id_game} value={game.id_game}>
+                {game.name}
               </option>
             ))}
           </select>
@@ -232,10 +232,10 @@ export default function DashboardAnalytics({ activities, games, stores }: Dashbo
           </h3>
           <div className="space-y-3">
             {topGames.map(({ game, count }) => (
-              <div key={game?.id_juego} className="flex items-center justify-between">
+              <div key={game?.id_game} className="flex items-center justify-between">
                 <div className="flex items-center">
                   <GameController className="w-4 h-4 text-purple-600 mr-2" />
-                  <span className="text-sm text-gray-700">{game?.nombre}</span>
+                  <span className="text-sm text-gray-700">{game?.name}</span>
                 </div>
                 <span className="font-press-start text-xs text-gray-600">{count}</span>
               </div>
@@ -249,10 +249,10 @@ export default function DashboardAnalytics({ activities, games, stores }: Dashbo
           </h3>
           <div className="space-y-3">
             {topStores.map(({ store, count }) => (
-              <div key={store?.id_tienda} className="flex items-center justify-between">
+              <div key={store?.id_store} className="flex items-center justify-between">
                 <div className="flex items-center">
                   <MapPin className="w-4 h-4 text-red-600 mr-2" />
-                  <span className="text-sm text-gray-700">{store?.nombre}</span>
+                  <span className="text-sm text-gray-700">{store?.name_store}</span>
                 </div>
                 <span className="font-press-start text-xs text-gray-600">{count}</span>
               </div>

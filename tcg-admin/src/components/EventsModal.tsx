@@ -46,7 +46,7 @@ export default function EventsModal({
   if (!isOpen) return null;
 
   const dateEvents = events.filter(event => {
-    const eventDate = new Date(event.fecha);
+    const eventDate = new Date(event.date);
     return (
       eventDate.getDate() === date.getDate() &&
       eventDate.getMonth() === date.getMonth() &&
@@ -109,50 +109,50 @@ export default function EventsModal({
               {dateEvents.length > 0 ? (
                 <div className="space-y-4">
                   {dateEvents.map(event => {
-                    const game = games.find(g => g.id_juego === event.id_juego);
-                    const store = stores.find(s => s.id_tienda === event.id_tienda);
+                    const game = games.find(g => g.id_game === event.id_game);
+                    const store = stores.find(s => s.id_store === event.id_store);
 
                     return (
                       <div
-                        key={event.id_actividad}
+                        key={event.id_activity}
                         className="retro-container bg-gray-50 hover:bg-gray-100 transition-colors cursor-pointer"
                         onClick={() => onEventClick(event)}
                       >
                         <div className="space-y-3">
                           <div className="flex items-start justify-between">
                             <h3 className="font-press-start text-sm text-gray-800">
-                              {event.nombre}
+                              {event.name_activity}
                             </h3>
                             <span className="font-press-start text-xs text-gray-600">
-                              {formatTime(event.fecha)}
+                              {formatTime(event.date)}
                             </span>
                           </div>
 
                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
                             <div className="flex items-center text-gray-600">
                               <MapPin className="w-4 h-4 mr-2 flex-shrink-0" />
-                              <span className="truncate">{event.ubicacion}</span>
+                              <span className="truncate">{event.adress_activity}</span>
                             </div>
 
                             {store && (
                               <div className="flex items-center text-gray-600">
                                 <Store className="w-4 h-4 mr-2 flex-shrink-0" />
-                                <span className="truncate">{store.nombre}</span>
+                                <span className="truncate">{store.name_store}</span>
                               </div>
                             )}
 
                             {game && (
                               <div className="flex items-center text-gray-600">
                                 <GameController className="w-4 h-4 mr-2 flex-shrink-0" />
-                                <span className="truncate">{game.nombre}</span>
+                                <span className="truncate">{game.name}</span>
                               </div>
                             )}
 
-                            {event.enlace_referencia && (
+                            {event.reference_link && (
                               <div className="flex items-center text-blue-600">
                                 <LinkIcon className="w-4 h-4 mr-2 flex-shrink-0" />
                                 <a
-                                  href={event.enlace_referencia}
+                                  href={event.reference_link}
                                   target="_blank"
                                   rel="noopener noreferrer"
                                   onClick={e => e.stopPropagation()}

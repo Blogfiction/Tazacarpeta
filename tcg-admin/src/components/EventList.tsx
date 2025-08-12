@@ -58,12 +58,12 @@ export default function EventList({ events, onEventClick }: EventListProps) {
     <div className="space-y-4">
       {currentEvents.length > 0 ? (
         currentEvents.map(event => {
-          const eventIsToday = isToday(event.fecha);
-          const eventIsPast = isPastEvent(event.fecha);
+          const eventIsToday = isToday(event.date);
+          const eventIsPast = isPastEvent(event.date);
           
           return (
             <div
-              key={event.id_actividad}
+              key={event.id_activity}
               onClick={() => onEventClick(event)}
               className={`event-card ${eventIsPast ? 'past-event' : ''} cursor-pointer`}
             >
@@ -74,20 +74,20 @@ export default function EventList({ events, onEventClick }: EventListProps) {
               )}
               
               <h3 className="event-title">
-                {event.nombre}
+                {event.name_activity}
               </h3>
               
               <div className="event-detail">
                 <Calendar className="event-detail-icon text-yellow-600" />
                 <span className="event-detail-text">
-                  {formatDate(event.fecha)}
+                  {formatDate(event.date)}
                 </span>
               </div>
               
               <div className="event-detail">
                 <MapPin className="event-detail-icon text-red-600" />
                 <span className="event-detail-text">
-                  {event.ubicacion}
+                  {event.adress_activity}
                 </span>
               </div>
             </div>

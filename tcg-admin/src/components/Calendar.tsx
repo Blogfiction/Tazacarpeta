@@ -25,7 +25,7 @@ export default function Calendar({ events, games, stores, onEventClick }: Calend
 
   const hasEventOnDate = (date: Date) => {
     return events.some(event => {
-      const eventDate = new Date(event.fecha);
+      const eventDate = new Date(event.date);
       return (
         eventDate.getDate() === date.getDate() &&
         eventDate.getMonth() === date.getMonth() &&

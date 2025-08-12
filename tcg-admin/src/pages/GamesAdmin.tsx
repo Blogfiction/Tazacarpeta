@@ -35,15 +35,15 @@ export default function GamesAdmin() {
   const [selectedCategoria, setSelectedCategoria] = useState('');
   
   const [formData, setFormData] = useState<GameInput>({
-    nombre: '',
-    descripcion: '',
-    categoria: '',
-    edad_minima: 0,
-    edad_maxima: null,
-    jugadores_min: 1,
-    jugadores_max: 4,
-    duracion_min: 30,
-    duracion_max: 60
+    name: '',
+    description: '',
+    category: '',
+    min_age: 0,
+    max_age: undefined,
+    min_players: 1,
+    max_players: 4,
+    min_duration: 30,
+    max_duration: 60
   });
 
   useEffect(() => {
@@ -67,9 +67,9 @@ export default function GamesAdmin() {
 
   const filteredGames = useMemo(() => {
     return games.filter(game => {
-      const matchesSearch = game.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                          game.descripcion.toLowerCase().includes(searchTerm.toLowerCase());
-      const matchesCategoria = !selectedCategoria || game.categoria === selectedCategoria;
+      const matchesSearch = game.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                          game.description.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesCategoria = !selectedCategoria || game.category === selectedCategoria;
       return matchesSearch && matchesCategoria;
     });
   }, [games, searchTerm, selectedCategoria]);
@@ -77,27 +77,27 @@ export default function GamesAdmin() {
   const validateFormData = () => {
     const errors: string[] = [];
 
-    if (formData.edad_maxima && formData.edad_maxima < formData.edad_minima) {
+    if (formData.max_age && formData.max_age < formData.min_age) {
       errors.push('La edad máxima debe ser mayor que la edad mínima');
     }
 
-    if (formData.jugadores_max < formData.jugadores_min) {
+    if (formData.max_players < formData.min_players) {
       errors.push('El número máximo de jugadores debe ser mayor o igual al mínimo');
     }
 
-    if (formData.duracion_max < formData.duracion_min) {
+    if (formData.max_duration < formData.min_duration) {
       errors.push('La duración máxima debe ser mayor que la duración mínima');
     }
 
-    if (formData.jugadores_min < 1) {
+    if (formData.min_players < 1) {
       errors.push('El número mínimo de jugadores debe ser al menos 1');
     }
 
-    if (formData.edad_minima < 0) {
+    if (formData.min_age < 0) {
       errors.push('La edad mínima no puede ser negativa');
     }
 
-    if (formData.duracion_min < 1) {
+    if (formData.min_duration < 1) {
       errors.push('La duración mínima debe ser al menos 1 minuto');
     }
 
@@ -120,15 +120,15 @@ export default function GamesAdmin() {
       return;
     }
     
-    // Prepare data ensuring edad_maxima is number or null
+    // Prepare data ensuring max_age is number or null
     const preparedFormData = {
       ...formData,
-      edad_maxima: formData.edad_maxima === undefined ? null : formData.edad_maxima,
+      max_age: formData.max_age === undefined ? null : formData.max_age,
     };
     
     try {
       if (currentGame) {
-        await updateGame(currentGame.id_juego, preparedFormData);
+        await updateGame(currentGame.id_game, preparedFormData);
         setSuccess('Juego actualizado correctamente');
       } else {
         await createGame(preparedFormData);
@@ -157,15 +157,15 @@ export default function GamesAdmin() {
   const resetForm = () => {
     setCurrentGame(null);
     setFormData({
-      nombre: '',
-      descripcion: '',
-      categoria: '',
-      edad_minima: 0,
-      edad_maxima: null,
-      jugadores_min: 1,
-      jugadores_max: 4,
-      duracion_min: 30,
-      duracion_max: 60
+      name: '',
+      description: '',
+      category: '',
+      min_age: 0,
+      max_age: undefined,
+      min_players: 1,
+      max_players: 4,
+      min_duration: 30,
+      max_duration: 60
     });
   };
 
@@ -266,28 +266,28 @@ export default function GamesAdmin() {
           <>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {paginatedGames.map((game) => (
-                <div key={game.id_juego} className="retro-container bg-white">
+                <div key={game.id_game} className="retro-container bg-white">
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
                       <h3 className="font-press-start text-sm text-gray-800 mb-2">
-                        {game.nombre}
+                        {game.name}
                       </h3>
                       <p className="text-sm text-gray-600 mb-4">
-                        {game.descripcion}
+                        {game.description}
                       </p>
                       <div className="space-y-2">
                         <p className="text-xs text-gray-500">
-                          <span className="font-medium">Categoría:</span> {game.categoria}
+                          <span className="font-medium">Categoría:</span> {game.category}
                         </p>
                         <p className="text-xs text-gray-500">
-                          <span className="font-medium">Edad:</span> {game.edad_minima}
-                          {game.edad_maxima ? `-${game.edad_maxima}` : '+'} años
+                          <span className="font-medium">Edad:</span> {game.min_age}
+                          {game.max_age ? `-${game.max_age}` : '+'} años
                         </p>
                         <p className="text-xs text-gray-500">
-                          <span className="font-medium">Jugadores:</span> {game.jugadores_min}-{game.jugadores_max}
+                          <span className="font-medium">Jugadores:</span> {game.min_players}-{game.max_players}
                         </p>
                         <p className="text-xs text-gray-500">
-                          <span className="font-medium">Duración:</span> {game.duracion_min}-{game.duracion_max} min
+                          <span className="font-medium">Duración:</span> {game.min_duration}-{game.max_duration} min
                         </p>
                       </div>
                     </div>
@@ -296,15 +296,15 @@ export default function GamesAdmin() {
                         onClick={() => {
                           setCurrentGame(game);
                           setFormData({
-                            nombre: game.nombre,
-                            descripcion: game.descripcion,
-                            categoria: game.categoria,
-                            edad_minima: game.edad_minima,
-                            edad_maxima: game.edad_maxima,
-                            jugadores_min: game.jugadores_min,
-                            jugadores_max: game.jugadores_max,
-                            duracion_min: game.duracion_min,
-                            duracion_max: game.duracion_max
+                            name: game.name,
+                            description: game.description,
+                            category: game.category,
+                            min_age: game.min_age,
+                            max_age: game.max_age || undefined,
+                            min_players: game.min_players,
+                            max_players: game.max_players,
+                            min_duration: game.min_duration,
+                            max_duration: game.max_duration
                           });
                           setIsModalOpen(true);
                         }}
@@ -313,7 +313,7 @@ export default function GamesAdmin() {
                         <Edit2 className="h-5 w-5" />
                       </button>
                       <button
-                        onClick={() => handleDelete(game.id_juego)}
+                        onClick={() => handleDelete(game.id_game)}
                         className="p-2 text-red-600 hover:text-red-800"
                       >
                         <Trash2 className="h-5 w-5" />
@@ -354,8 +354,8 @@ export default function GamesAdmin() {
                   <input
                     type="text"
                     required
-                    value={formData.nombre}
-                    onChange={(e) => setFormData({ ...formData, nombre: e.target.value })}
+                    value={formData.name}
+                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                     className="retro-input"
                   />
                 </div>
@@ -366,8 +366,8 @@ export default function GamesAdmin() {
                   </label>
                   <textarea
                     required
-                    value={formData.descripcion}
-                    onChange={(e) => setFormData({ ...formData, descripcion: e.target.value })}
+                    value={formData.description}
+                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                     className="retro-input h-24"
                   />
                 </div>
@@ -378,8 +378,8 @@ export default function GamesAdmin() {
                   </label>
                   <select
                     required
-                    value={formData.categoria}
-                    onChange={(e) => setFormData({ ...formData, categoria: e.target.value })}
+                    value={formData.category}
+                    onChange={(e) => setFormData({ ...formData, category: e.target.value })}
                     className="retro-input"
                   >
                     <option value="">Selecciona una categoría</option>
@@ -398,13 +398,13 @@ export default function GamesAdmin() {
                       type="number"
                       required
                       min="0"
-                      value={formData.edad_minima}
+                      value={formData.min_age}
                       onChange={(e) => {
                         const value = parseInt(e.target.value);
                         setFormData({ 
                           ...formData, 
-                          edad_minima: value,
-                          edad_maxima: value > (formData.edad_maxima || 0) ? value : formData.edad_maxima 
+                          min_age: value,
+                          max_age: value > (formData.max_age || 0) ? value : formData.max_age 
                         });
                       }}
                       className="retro-input"
@@ -416,9 +416,9 @@ export default function GamesAdmin() {
                     </label>
                     <input
                       type="number"
-                      min={formData.edad_minima}
-                      value={formData.edad_maxima || ''}
-                      onChange={(e) => setFormData({ ...formData, edad_maxima: e.target.value ? parseInt(e.target.value) : null })}
+                      min={formData.min_age}
+                      value={formData.max_age || ''}
+                      onChange={(e) => setFormData({ ...formData, max_age: e.target.value ? parseInt(e.target.value) : undefined })}
                       className="retro-input"
                       placeholder="Opcional"
                     />
@@ -434,13 +434,13 @@ export default function GamesAdmin() {
                       type="number"
                       required
                       min="1"
-                      value={formData.jugadores_min}
+                      value={formData.min_players}
                       onChange={(e) => {
                         const value = parseInt(e.target.value);
                         setFormData({ 
                           ...formData, 
-                          jugadores_min: value,
-                          jugadores_max: value > formData.jugadores_max ? value : formData.jugadores_max 
+                          min_players: value,
+                          max_players: value > formData.max_players ? value : formData.max_players 
                         });
                       }}
                       className="retro-input"
@@ -453,9 +453,9 @@ export default function GamesAdmin() {
                     <input
                       type="number"
                       required
-                      min={formData.jugadores_min}
-                      value={formData.jugadores_max}
-                      onChange={(e) => setFormData({ ...formData, jugadores_max: parseInt(e.target.value) })}
+                      min={formData.min_players}
+                      value={formData.max_players}
+                      onChange={(e) => setFormData({ ...formData, max_players: parseInt(e.target.value) })}
                       className="retro-input"
                     />
                   </div>
@@ -470,13 +470,13 @@ export default function GamesAdmin() {
                       type="number"
                       required
                       min="1"
-                      value={formData.duracion_min}
+                      value={formData.min_duration}
                       onChange={(e) => {
                         const value = parseInt(e.target.value);
                         setFormData({ 
                           ...formData, 
-                          duracion_min: value,
-                          duracion_max: value > formData.duracion_max ? value : formData.duracion_max 
+                          min_duration: value,
+                          max_duration: value > formData.max_duration ? value : formData.max_duration 
                         });
                       }}
                       className="retro-input"
@@ -489,9 +489,9 @@ export default function GamesAdmin() {
                     <input
                       type="number"
                       required
-                      min={formData.duracion_min}
-                      value={formData.duracion_max}
-                      onChange={(e) => setFormData({ ...formData, duracion_max: parseInt(e.target.value) })}
+                      min={formData.min_duration}
+                      value={formData.max_duration}
+                      onChange={(e) => setFormData({ ...formData, max_duration: parseInt(e.target.value) })}
                       className="retro-input"
                     />
                   </div>

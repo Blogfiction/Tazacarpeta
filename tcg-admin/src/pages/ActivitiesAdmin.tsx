@@ -43,15 +43,12 @@ export default function ActivitiesAdmin() {
   const [filteredCurrentPage, setFilteredCurrentPage] = useState(1); // Separate page for filtered view
 
   const [formData, setFormData] = useState<ActivityInput>({
-    nombre: '',
-    fecha: '',
-    ubicacion: '',
-    enlace_referencia: '',
-    id_juego: undefined,
-    id_tienda: undefined,
-    place_id: undefined,
-    lat: undefined,
-    lng: undefined
+    name_activity: '',
+    date: '',
+    adress_activity: '',
+    reference_link: '',
+    id_game: '',
+    id_store: ''
   });
 
   useEffect(() => {
@@ -85,7 +82,7 @@ export default function ActivitiesAdmin() {
     
     try {
       if (currentActivity) {
-        await updateActivity(currentActivity.id_actividad, formData);
+        await updateActivity(currentActivity.id_activity, formData);
       } else {
         await createActivity(formData);
       }
@@ -97,38 +94,25 @@ export default function ActivitiesAdmin() {
     }
   };
 
-  const handlePlaceSelect = (place: google.maps.places.PlaceResult) => {
-    if (place.formatted_address && place.place_id) {
-      // Guardamos una copia del estado actual para preservar los valores del formulario
-      const updatedFormData = { ...formData };
-      
-      // Actualizamos solo los campos relacionados con la ubicación
-      updatedFormData.ubicacion = place.formatted_address;
-      updatedFormData.place_id = place.place_id;
-      
-      // Solo actualizamos las coordenadas si están disponibles
-      if (place.geometry && place.geometry.location) {
-        updatedFormData.lat = place.geometry.location.lat();
-        updatedFormData.lng = place.geometry.location.lng();
-      }
-      
-      // Actualizamos el estado con los nuevos datos preservando el resto
-      setFormData(updatedFormData);
-    }
-  };
+  // Ya no necesitamos esta función porque ahora es un input simple
+  // const handlePlaceSelect = (place: google.maps.places.PlaceResult) => {
+  //   if (place.place_id) {
+  //     setFormData(prev => ({
+  //       ...prev,
+  //       adress_activity: place.formatted_address || ''
+  //     }));
+  //   }
+  // };
 
   const openEditModal = (activity: Activity) => {
     setCurrentActivity(activity);
     setFormData({
-      nombre: activity.nombre,
-      fecha: new Date(activity.fecha).toISOString().slice(0, 16),
-      ubicacion: activity.ubicacion,
-      enlace_referencia: activity.enlace_referencia || '',
-      id_tienda: activity.id_tienda || undefined,
-      id_juego: activity.id_juego || undefined,
-      place_id: activity.place_id,
-      lat: activity.lat,
-      lng: activity.lng
+      name_activity: activity.name_activity || '',
+      date: new Date(activity.date).toISOString().slice(0, 16),
+      adress_activity: activity.adress_activity || '',
+      reference_link: activity.reference_link || '',
+      id_store: activity.id_store,
+      id_game: activity.id_game
     });
     setIsModalOpen(true);
   };
@@ -136,20 +120,17 @@ export default function ActivitiesAdmin() {
   const resetForm = () => {
     setCurrentActivity(null);
     setFormData({
-      nombre: '',
-      fecha: '',
-      ubicacion: '',
-      enlace_referencia: '',
-      id_juego: undefined,
-      id_tienda: undefined,
-      place_id: undefined,
-      lat: undefined,
-      lng: undefined
+      name_activity: '',
+      date: '',
+      adress_activity: '',
+      reference_link: '',
+      id_game: '',
+      id_store: ''
     });
   };
 
   const validateForm = () => {
-    if (!formData.nombre || !formData.fecha || !formData.ubicacion) {
+    if (!formData.name_activity || !formData.date || !formData.adress_activity) {
       return false;
     }
     return true;
@@ -173,22 +154,22 @@ export default function ActivitiesAdmin() {
     // Filtrar por tipo
     let filtered = [...activities];
     if (filterType === 'upcoming') {
-      filtered = filtered.filter(activity => new Date(activity.fecha) >= now);
+      filtered = filtered.filter(activity => new Date(activity.date) >= now);
     } else if (filterType === 'past') {
-      filtered = filtered.filter(activity => new Date(activity.fecha) < now);
+      filtered = filtered.filter(activity => new Date(activity.date) < now);
     }
     
     // Ordenar las actividades
     return filtered.sort((a, b) => {
       if (sortField === 'fecha') {
-        const dateA = new Date(a.fecha).getTime();
-        const dateB = new Date(b.fecha).getTime();
+        const dateA = new Date(a.date).getTime();
+        const dateB = new Date(b.date).getTime();
         return sortDirection === 'asc' ? dateA - dateB : dateB - dateA;
       } else {
         // Ordenar por nombre
         return sortDirection === 'asc' 
-          ? a.nombre.localeCompare(b.nombre)
-          : b.nombre.localeCompare(a.nombre);
+          ? (a.name_activity || '').localeCompare(b.name_activity || '')
+          : (b.name_activity || '').localeCompare(a.name_activity || '');
       }
     });
   };
@@ -196,12 +177,12 @@ export default function ActivitiesAdmin() {
   // Separar actividades futuras y pasadas
   const getUpcomingActivities = () => {
     const now = new Date();
-    return activities.filter(activity => new Date(activity.fecha) >= now);
+    return activities.filter(activity => new Date(activity.date) >= now);
   };
   
   const getPastActivities = () => {
     const now = new Date();
-    return activities.filter(activity => new Date(activity.fecha) < now);
+    return activities.filter(activity => new Date(activity.date) < now);
   };
   
   // Toggle ordenamiento
@@ -224,8 +205,8 @@ export default function ActivitiesAdmin() {
   if (!session) return null;
   
   const filteredActivitiesData = getFilteredAndSortedActivities();
-  const upcomingActivitiesData = getUpcomingActivities().sort((a, b) => new Date(a.fecha).getTime() - new Date(b.fecha).getTime());
-  const pastActivitiesData = getPastActivities().sort((a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime());
+  const upcomingActivitiesData = getUpcomingActivities().sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+  const pastActivitiesData = getPastActivities().sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   
   const hasPastEvents = pastActivitiesData.length > 0;
   const hasUpcomingEvents = upcomingActivitiesData.length > 0;
@@ -545,74 +526,77 @@ export default function ActivitiesAdmin() {
               <label className="block font-press-start text-xs text-gray-700 mb-2">
                 Nombre
               </label>
-              <input
-                type="text"
-                value={formData.nombre}
-                onChange={(e) => setFormData({ ...formData, nombre: e.target.value })}
-                className="retro-input w-full"
-                placeholder="Nombre de la actividad"
-                required
-              />
+                             <input
+                 type="text"
+                 value={formData.name_activity}
+                 onChange={(e) => setFormData({ ...formData, name_activity: e.target.value })}
+                 className="retro-input w-full"
+                 placeholder="Nombre de la actividad"
+                 required
+               />
             </div>
 
             <div>
               <label className="block font-press-start text-xs text-gray-700 mb-2">
                 Fecha y Hora
               </label>
-              <input
-                type="datetime-local"
-                value={formData.fecha}
-                onChange={(e) => setFormData({ ...formData, fecha: e.target.value })}
-                className="retro-input w-full"
-                required
-              />
+                             <input
+                 type="datetime-local"
+                 value={formData.date}
+                 onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+                 className="retro-input w-full"
+                 required
+               />
             </div>
 
-            <div>
-              <label className="block font-press-start text-xs text-gray-700 mb-2">
-                Ubicación
-              </label>
-              <PlacesAutocomplete
-                onPlaceSelect={handlePlaceSelect}
-                defaultValue={formData.ubicacion}
-                className="w-full"
-              />
-            </div>
+                                       <div>
+                <label className="block font-press-start text-xs text-gray-700 mb-2">
+                  Ubicación
+                </label>
+                <input
+                  type="text"
+                  value={formData.adress_activity}
+                  onChange={(e) => setFormData({ ...formData, adress_activity: e.target.value })}
+                  className="retro-input w-full"
+                  placeholder="Ingresa la ubicación"
+                  required
+                />
+              </div>
 
             <div>
               <label className="block font-press-start text-xs text-gray-700 mb-2">
                 Juego
               </label>
-              <select
-                value={formData.id_juego || ''}
-                onChange={(e) => setFormData({ ...formData, id_juego: e.target.value || undefined })}
-                className="retro-input w-full"
-              >
-                <option value="">Seleccionar juego</option>
-                {games.map((game) => (
-                  <option key={game.id_juego} value={game.id_juego}>
-                    {game.nombre}
-                  </option>
-                ))}
-              </select>
+                             <select
+                 value={formData.id_game}
+                 onChange={(e) => setFormData({ ...formData, id_game: e.target.value })}
+                 className="retro-input w-full"
+               >
+                 <option value="">Seleccionar juego</option>
+                 {games.map((game) => (
+                   <option key={game.id_game} value={game.id_game}>
+                     {game.name}
+                   </option>
+                 ))}
+               </select>
             </div>
 
             <div>
               <label className="block font-press-start text-xs text-gray-700 mb-2">
                 Tienda
               </label>
-              <select
-                value={formData.id_tienda || ''}
-                onChange={(e) => setFormData({ ...formData, id_tienda: e.target.value || undefined })}
-                className="retro-input w-full"
-              >
-                <option value="">Seleccionar tienda</option>
-                {stores.map((store) => (
-                  <option key={store.id_tienda} value={store.id_tienda}>
-                    {store.nombre}
-                  </option>
-                ))}
-              </select>
+                             <select
+                 value={formData.id_store}
+                 onChange={(e) => setFormData({ ...formData, id_store: e.target.value })}
+                 className="retro-input w-full"
+               >
+                 <option value="">Seleccionar tienda</option>
+                 {stores.map((store) => (
+                   <option key={store.id_store} value={store.id_store}>
+                     {store.name_store}
+                   </option>
+                 ))}
+               </select>
             </div>
 
             <div>
@@ -621,8 +605,8 @@ export default function ActivitiesAdmin() {
               </label>
               <input
                 type="url"
-                value={formData.enlace_referencia}
-                onChange={(e) => setFormData({ ...formData, enlace_referencia: e.target.value })}
+                value={formData.reference_link}
+                onChange={(e) => setFormData({ ...formData, reference_link: e.target.value })}
                 className="retro-input w-full"
                 placeholder="https://ejemplo.com"
               />
@@ -655,9 +639,9 @@ export default function ActivitiesAdmin() {
   
   // Función para renderizar un ítem de actividad
   function renderActivityItem(activity: Activity, isPast: boolean) {
-    const game = games.find(g => g.id_juego === activity.id_juego);
-    const store = stores.find(s => s.id_tienda === activity.id_tienda);
-    const activityDate = new Date(activity.fecha);
+    const game = games.find(g => g.id_game === activity.id_game);
+    const store = stores.find(s => s.id_store === activity.id_store);
+    const activityDate = new Date(activity.date);
     
     // Calcular si la actividad es hoy
     const today = new Date();
@@ -677,7 +661,7 @@ export default function ActivitiesAdmin() {
     const formattedDate = activityDate.toLocaleDateString('es-CL', options);
     
     return (
-      <li key={activity.id_actividad} className="mb-4">
+      <li key={activity.id_activity} className="mb-4">
         <div className={`event-card ${isPast ? 'past-event' : ''}`}>
           {/* Indicador de evento de hoy */}
           {isToday && !isPast && (
@@ -687,7 +671,7 @@ export default function ActivitiesAdmin() {
           )}
           
           <h3 className="event-title">
-            {activity.nombre}
+            {activity.name_activity}
           </h3>
           
           <div className="event-detail">
@@ -697,39 +681,39 @@ export default function ActivitiesAdmin() {
             </span>
           </div>
           
-          <div className="event-detail">
-            <MapPin className="event-detail-icon text-red-600" />
-            <a 
-              href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(activity.ubicacion)}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="event-detail-text hover:text-blue-600 transition-colors flex items-center"
-            >
-              {activity.ubicacion}
-              <LinkIcon className="w-3 h-3 ml-1 inline" />
-            </a>
-          </div>
+                     <div className="event-detail">
+             <MapPin className="event-detail-icon text-red-600" />
+             <a 
+               href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(activity.adress_activity || '')}`}
+               target="_blank"
+               rel="noopener noreferrer"
+               className="event-detail-text hover:text-blue-600 transition-colors flex items-center"
+             >
+               {activity.adress_activity || 'Sin ubicación'}
+               <LinkIcon className="w-3 h-3 ml-1 inline" />
+             </a>
+           </div>
           
           <div className="mt-3 flex flex-wrap">
             {game && (
               <div className="event-tag game-tag">
                 <GameController className="h-3 w-3 mr-1" />
-                {game.nombre}
+                {game.name}
               </div>
             )}
             
             {store && (
               <div className="event-tag store-tag">
                 <Store className="h-3 w-3 mr-1" />
-                {store.nombre}
+                {store.name_store}
               </div>
             )}
           </div>
           
-          {activity.enlace_referencia && (
+          {activity.reference_link && (
             <div className="mt-2">
               <a
-                href={activity.enlace_referencia}
+                                  href={activity.reference_link}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-sm text-blue-600 hover:underline flex items-center"
@@ -749,7 +733,7 @@ export default function ActivitiesAdmin() {
               <Edit2 className="h-4 w-4" />
             </button>
             <button
-              onClick={() => handleDelete(activity.id_actividad)}
+              onClick={() => handleDelete(activity.id_activity)}
               className="event-action-button delete"
               aria-label="Eliminar actividad"
             >

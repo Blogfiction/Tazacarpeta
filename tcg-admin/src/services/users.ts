@@ -29,6 +29,12 @@ export async function getProfiles(): Promise<Profile[]> {
 // Replicating its exact behavior with fake data might be complex.
 // For dev mode, we can return a simplified fake structure.
 export async function getTopActiveUsers(limit: number = 5) {
+  // TODO: Implementar cuando se cree la tabla user_activity_stats en Supabase
+  console.log('UsersService: getTopActiveUsers not implemented yet - returning empty array');
+  return [];
+  
+  // Código original comentado hasta que se cree la tabla:
+  /*
   if (isDevModeActive()) {
     console.log('UsersService: Dev Mode - Returning fake top active users');
     await new Promise(resolve => setTimeout(resolve, 100));
@@ -67,4 +73,5 @@ export async function getTopActiveUsers(limit: number = 5) {
     },
     count: user.total_inscriptions // Or based on your specific logic
   }));
+  */
 }
