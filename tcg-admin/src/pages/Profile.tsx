@@ -13,11 +13,11 @@ export default function Profile() {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [editing, setEditing] = useState(false);
   const [formData, setFormData] = useState({
-    nombre: '',
-    apellido: '',
-    ciudad: '',
-    comuna_region: '',
-    pais: ''
+    first_name: '',
+    last_name: '',
+    city: '',
+    region: '',
+    country: ''
   });
 
   useEffect(() => {
@@ -31,23 +31,66 @@ export default function Profile() {
   async function loadProfile() {
     try {
       const { data, error: profileError } = await supabase
-        .from('profiles')
+        .from('users')
         .select('*')
-        .eq('id', session?.user.id)
+        .eq('id_user', session?.user.id)
         .single();
 
-      if (profileError) throw profileError;
+      if (profileError) {
+        console.error('Error cargando perfil:', profileError);
+        // Si no existe el perfil, lo creamos
+        if (profileError.code === 'PGRST116') {
+          await createProfile();
+          return;
+        }
+        throw profileError;
+      }
 
       setProfile(data);
       setFormData({
-        nombre: data.nombre || '',
-        apellido: data.apellido || '',
-        ciudad: data.ciudad || '',
-        comuna_region: data.comuna_region || '',
-        pais: data.pais || ''
+        first_name: data.first_name || '',
+        last_name: data.last_name || '',
+        city: data.city || '',
+        region: data.region || '',
+        country: data.country || ''
       });
     } catch (err) {
+      console.error('Error en loadProfile:', err);
       setError('Error al cargar el perfil');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function createProfile() {
+    try {
+      const { data, error: createError } = await supabase
+        .from('users')
+        .insert({
+          id_user: session?.user.id,
+          first_name: null,
+          last_name: null,
+          city: null,
+          region: null,
+          country: null,
+          email: session?.user.email
+        })
+        .select()
+        .single();
+
+      if (createError) throw createError;
+
+      setProfile(data);
+      setFormData({
+        first_name: '',
+        last_name: '',
+        city: '',
+        region: '',
+        country: ''
+      });
+    } catch (err) {
+      console.error('Error creando perfil:', err);
+      setError('Error al crear el perfil');
     } finally {
       setLoading(false);
     }
@@ -59,20 +102,32 @@ export default function Profile() {
     
     try {
       const { error: updateError } = await supabase
-        .from('profiles')
+        .from('users')
         .update(formData)
-        .eq('id', session?.user.id);
+        .eq('id_user', session?.user.id);
 
       if (updateError) throw updateError;
 
       setEditing(false);
       loadProfile();
     } catch (err) {
+      console.error('Error actualizando perfil:', err);
       setError('Error al actualizar el perfil');
     }
   };
 
   if (!session) return null;
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-[#FFFFE0] flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Cargando perfil...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[#FFFFE0]">
@@ -88,10 +143,10 @@ export default function Profile() {
                   </div>
                   <div>
                     <h2 className="font-press-start text-sm sm:text-base text-gray-800">
-                      {profile?.nombre ? `${profile.nombre} ${profile.apellido}` : session.user.email}
+                      {profile?.first_name ? `${profile.first_name} ${profile.last_name}` : session.user.email}
                     </h2>
                     <p className="text-sm text-gray-500 mt-1">
-                      {profile?.tipo_plan || 'Plan Básico'}
+                      Usuario
                     </p>
                   </div>
                 </div>
@@ -118,8 +173,8 @@ export default function Profile() {
                       </label>
                       <input
                         type="text"
-                        value={formData.nombre}
-                        onChange={(e) => setFormData({ ...formData, nombre: e.target.value })}
+                        value={formData.first_name}
+                        onChange={(e) => setFormData({ ...formData, first_name: e.target.value })}
                         className="retro-input"
                         placeholder="Tu nombre"
                       />
@@ -130,8 +185,8 @@ export default function Profile() {
                       </label>
                       <input
                         type="text"
-                        value={formData.apellido}
-                        onChange={(e) => setFormData({ ...formData, apellido: e.target.value })}
+                        value={formData.last_name}
+                        onChange={(e) => setFormData({ ...formData, last_name: e.target.value })}
                         className="retro-input"
                         placeholder="Tu apellido"
                       />
@@ -142,22 +197,22 @@ export default function Profile() {
                       </label>
                       <input
                         type="text"
-                        value={formData.ciudad}
-                        onChange={(e) => setFormData({ ...formData, ciudad: e.target.value })}
+                        value={formData.city}
+                        onChange={(e) => setFormData({ ...formData, city: e.target.value })}
                         className="retro-input"
                         placeholder="Tu ciudad"
                       />
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Comuna/Región
+                        Región
                       </label>
                       <input
                         type="text"
-                        value={formData.comuna_region}
-                        onChange={(e) => setFormData({ ...formData, comuna_region: e.target.value })}
+                        value={formData.region}
+                        onChange={(e) => setFormData({ ...formData, region: e.target.value })}
                         className="retro-input"
-                        placeholder="Tu comuna o región"
+                        placeholder="Tu región"
                       />
                     </div>
                     <div>
@@ -166,8 +221,8 @@ export default function Profile() {
                       </label>
                       <input
                         type="text"
-                        value={formData.pais}
-                        onChange={(e) => setFormData({ ...formData, pais: e.target.value })}
+                        value={formData.country}
+                        onChange={(e) => setFormData({ ...formData, country: e.target.value })}
                         className="retro-input"
                         placeholder="Tu país"
                       />
@@ -202,11 +257,11 @@ export default function Profile() {
                         {new Date(session.user.created_at).toLocaleDateString()}
                       </p>
                     </div>
-                    {profile?.ciudad && (
+                    {profile?.city && (
                       <div>
                         <h3 className="text-sm font-medium text-gray-500">Ubicación</h3>
                         <p className="mt-1 text-sm text-gray-900">
-                          {`${profile.ciudad}, ${profile.comuna_region}, ${profile.pais}`}
+                          {`${profile.city}, ${profile.region}, ${profile.country}`}
                         </p>
                       </div>
                     )}

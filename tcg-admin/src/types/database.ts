@@ -35,6 +35,7 @@ export interface Activity {
   reference_link: string | null;
   created_at: string;
   updated_at: string;
+  id_users?: string | null;
 }
 
 export interface ActivityInput {
@@ -73,6 +74,7 @@ export interface Store {
   email: string | null;
   latitude: number | null;
   longitude: number | null;
+  id_users?: string | null;
 }
 
 export interface StoreInput {
@@ -85,15 +87,15 @@ export interface StoreInput {
 }
 
 export interface Profile {
-  id: string;
-  nombre: string | null;
-  apellido: string | null;
-  ciudad: string | null;
-  comuna_region: string | null;
-  pais: string | null;
-  tipo_plan: string;
+  id_user: string;
+  first_name: string | null;
+  last_name: string | null;
+  city: string | null;
+  region: string | null;
+  country: string | null;
   email: string | null;
   updated_at: string;
+  created_at: string;
 }
 
 export interface UserActivityStats {

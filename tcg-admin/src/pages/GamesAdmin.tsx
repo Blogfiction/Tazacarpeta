@@ -21,7 +21,7 @@ const CATEGORIAS = [
 ];
 
 export default function GamesAdmin() {
-  const { session } = useAuth();
+  const { session, user, isAdmin, isClient } = useAuth();
   const navigate = useNavigate();
   const [games, setGames] = useState<Game[]>([]);
   const [loading, setLoading] = useState(true);
@@ -56,6 +56,7 @@ export default function GamesAdmin() {
 
   async function loadGames() {
     try {
+      // Los juegos son compartidos para todos los usuarios (admin y cliente)
       const data = await getGames();
       setGames(data);
     } catch (err) {

@@ -12,7 +12,7 @@ import { getStores } from '../services/stores';
 import type { Activity, Game, Store } from '../types/database';
 
 export default function Dashboard() {
-  const { session } = useAuth();
+  const { session, user, isAdmin, isClient } = useAuth();
   const navigate = useNavigate();
   const [activities, setActivities] = useState<Activity[]>([]);
   const [games, setGames] = useState<Game[]>([]);
@@ -30,10 +30,12 @@ export default function Dashboard() {
 
   async function loadData() {
     try {
+      // El Dashboard debe mostrar todas las actividades y tiendas para el calendario
+      // Solo se filtran en las páginas de administración específicas
       const [activitiesData, gamesData, storesData] = await Promise.all([
-        getActivities(),
-        getGames(),
-        getStores()
+        getActivities(), // Sin filtro - mostrar todas para el calendario
+        getGames(), // Los juegos son compartidos para todos
+        getStores() // Sin filtro - mostrar todas para el calendario
       ]);
       setActivities(activitiesData);
       setGames(gamesData);
@@ -80,7 +82,7 @@ export default function Dashboard() {
               </h2>
               <EventList
                 events={activities.filter(activity => new Date(activity.date) >= new Date())
-                                 .sort((a, b) => new Date(activity.date).getTime() - new Date(activity.date).getTime())}
+                                 .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())}
                 onEventClick={handleEventClick}
               />
             </div>

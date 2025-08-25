@@ -29,12 +29,6 @@ export async function getProfiles(): Promise<Profile[]> {
 // Replicating its exact behavior with fake data might be complex.
 // For dev mode, we can return a simplified fake structure.
 export async function getTopActiveUsers(limit: number = 5) {
-  // TODO: Implementar cuando se cree la tabla user_activity_stats en Supabase
-  console.log('UsersService: getTopActiveUsers not implemented yet - returning empty array');
-  return [];
-  
-  // Código original comentado hasta que se cree la tabla:
-  /*
   if (isDevModeActive()) {
     console.log('UsersService: Dev Mode - Returning fake top active users');
     await new Promise(resolve => setTimeout(resolve, 100));
@@ -51,27 +45,60 @@ export async function getTopActiveUsers(limit: number = 5) {
   }
 
   console.log('UsersService: Fetching top active users from Supabase');
-  const { data, error } = await supabase
-    .from('user_activity_stats') // Assumes this view exists
-    .select('*')
-    .order('total_inscriptions', { ascending: false })
-    .order('total_searches', { ascending: false })
-    .limit(limit);
+  
+  try {
+    // Obtener usuarios más activos basándose en las inscripciones
+    const { data, error } = await supabase
+      .from('inscriptions')
+      .select(`
+        id_user,
+        users:users(
+          id_user,
+          first_name,
+          last_name,
+          email
+        )
+      `)
+      .not('id_user', 'is', null);
 
-  if (error) {
-    console.error('UsersService: Error fetching top active users:', error);
-    throw error;
+    if (error) {
+      console.error('UsersService: Error fetching inscriptions:', error);
+      throw error;
+    }
+
+    // Contar inscripciones por usuario
+    const userCounts = new Map<string, { profile: any; count: number }>();
+    
+    data?.forEach(inscription => {
+      if (inscription.id_user && inscription.users) {
+        const userId = inscription.id_user;
+        const userData = inscription.users as any; // Type assertion para evitar errores de TypeScript
+        const existing = userCounts.get(userId);
+        
+        if (existing) {
+          existing.count += 1;
+        } else {
+          userCounts.set(userId, {
+            profile: {
+              id: userData.id_user,
+              nombre: userData.first_name,
+              apellido: userData.last_name,
+              email: userData.email
+            },
+            count: 1
+          });
+        }
+      }
+    });
+
+    // Convertir a array y ordenar por count
+    const topUsers = Array.from(userCounts.values())
+      .sort((a, b) => b.count - a.count)
+      .slice(0, limit);
+
+    return topUsers;
+  } catch (err) {
+    console.error('UsersService: Error in getTopActiveUsers:', err);
+    return [];
   }
-
-  // Keep the original mapping logic for real data
-  return (data || []).map((user: any) => ({
-    profile: {
-      id: user.id,
-      nombre: user.nombre,
-      apellido: user.apellido,
-      email: user.email
-    },
-    count: user.total_inscriptions // Or based on your specific logic
-  }));
-  */
 }

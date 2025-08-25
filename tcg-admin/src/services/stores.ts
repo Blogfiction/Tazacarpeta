@@ -1,12 +1,20 @@
 import { supabase } from '../lib/supabaseClient'
 import type { Store, StoreInput } from '../types/database'
 
-export async function getStores(): Promise<Store[]> {
+export async function getStores(userId?: string): Promise<Store[]> {
   console.log('StoresService: Fetching stores from Supabase');
-  const { data, error } = await supabase
+  
+  let query = supabase
     .from('stores')
-    .select('id_store, name_store, adress, phone, email, latitude, longitude')
-    .order('name_store')
+    .select('id_store, name_store, adress, phone, email, latitude, longitude, id_users')
+    .order('name_store');
+
+  // Si se proporciona userId, filtrar solo las tiendas del usuario
+  if (userId) {
+    query = query.eq('id_users', userId);
+  }
+
+  const { data, error } = await query;
 
   if (error) {
     console.error('StoresService: Error fetching stores:', error);
@@ -15,13 +23,20 @@ export async function getStores(): Promise<Store[]> {
   return data || []
 }
 
-export async function getStore(id: string): Promise<Store | null> {
+export async function getStore(id: string, userId?: string): Promise<Store | null> {
   console.log(`StoresService: Fetching store ${id} from Supabase`);
-  const { data, error } = await supabase
+  
+  let query = supabase
     .from('stores')
-    .select('id_store, name_store, adress, phone, email, latitude, longitude')
-    .eq('id_store', id)
-    .single()
+    .select('id_store, name_store, adress, phone, email, latitude, longitude, id_users')
+    .eq('id_store', id);
+
+  // Si se proporciona userId, verificar que la tienda pertenezca al usuario
+  if (userId) {
+    query = query.eq('id_users', userId);
+  }
+
+  const { data, error } = await query.single();
 
   if (error) {
     console.error(`StoresService: Error fetching store ${id}:`, error);
@@ -31,12 +46,19 @@ export async function getStore(id: string): Promise<Store | null> {
   return data
 }
 
-export async function createStore(store: StoreInput): Promise<Store> {
+export async function createStore(store: StoreInput, userId: string): Promise<Store> {
   console.log('StoresService: Creating store in Supabase:', store);
+  
+  // Asegurar que la tienda se cree con el userId del usuario logueado
+  const storeWithUser = {
+    ...store,
+    id_users: userId
+  };
+
   const { data, error } = await supabase
     .from('stores')
-    .insert([store])
-    .select('id_store, name_store, adress, phone, email, latitude, longitude')
+    .insert([storeWithUser])
+    .select('id_store, name_store, adress, phone, email, latitude, longitude, id_users')
     .single()
 
   if (error) {
@@ -46,13 +68,21 @@ export async function createStore(store: StoreInput): Promise<Store> {
   return data
 }
 
-export async function updateStore(id: string, storeUpdate: Partial<StoreInput>): Promise<Store> {
+export async function updateStore(id: string, storeUpdate: Partial<StoreInput>, userId?: string): Promise<Store> {
   console.log(`StoresService: Updating store ${id} in Supabase:`, storeUpdate);
-  const { data, error } = await supabase
+  
+  let query = supabase
     .from('stores')
     .update(storeUpdate)
-    .eq('id_store', id)
-    .select('id_store, name_store, adress, phone, email, latitude, longitude')
+    .eq('id_store', id);
+
+  // Si se proporciona userId, verificar que la tienda pertenezca al usuario
+  if (userId) {
+    query = query.eq('id_users', userId);
+  }
+
+  const { data, error } = await query
+    .select('id_store, name_store, adress, phone, email, latitude, longitude, id_users')
     .single()
 
   if (error) {
@@ -62,12 +92,20 @@ export async function updateStore(id: string, storeUpdate: Partial<StoreInput>):
   return data
 }
 
-export async function deleteStore(id: string): Promise<void> {
+export async function deleteStore(id: string, userId?: string): Promise<void> {
   console.log(`StoresService: Deleting store ${id} from Supabase`);
-  const { error } = await supabase
+  
+  let query = supabase
     .from('stores')
     .delete()
-    .eq('id_store', id)
+    .eq('id_store', id);
+
+  // Si se proporciona userId, verificar que la tienda pertenezca al usuario
+  if (userId) {
+    query = query.eq('id_users', userId);
+  }
+
+  const { error } = await query;
 
   if (error) {
     console.error(`StoresService: Error deleting store ${id}:`, error);

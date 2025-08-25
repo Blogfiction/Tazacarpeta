@@ -20,7 +20,7 @@ type SortField = 'fecha' | 'nombre';
 const ITEMS_PER_PAGE = 5; // Define items per page
 
 export default function ActivitiesAdmin() {
-  const { session } = useAuth();
+  const { session, user, isAdmin, isClient } = useAuth();
   const navigate = useNavigate();
   const [activities, setActivities] = useState<Activity[]>([]);
   const [games, setGames] = useState<Game[]>([]);
@@ -61,10 +61,12 @@ export default function ActivitiesAdmin() {
 
   async function loadData() {
     try {
+      // Si es cliente, filtrar solo sus actividades y tiendas; si es admin, mostrar todas
+      const userId = isClient ? user?.id : undefined;
       const [activitiesData, gamesData, storesData] = await Promise.all([
-        getActivities(),
-        getGames(),
-        getStores()
+        getActivities(userId),
+        getGames(), // Los juegos son compartidos para todos
+        getStores(userId)
       ]);
       setActivities(activitiesData);
       setGames(gamesData);
@@ -82,9 +84,15 @@ export default function ActivitiesAdmin() {
     
     try {
       if (currentActivity) {
-        await updateActivity(currentActivity.id_activity, formData);
+        // Si es cliente, verificar que la actividad pertenezca al usuario
+        const userId = isClient ? user?.id : undefined;
+        await updateActivity(currentActivity.id_activity, formData, userId);
       } else {
-        await createActivity(formData);
+        // Al crear una nueva actividad, siempre se asigna al usuario logueado
+        if (!user?.id) {
+          throw new Error('Usuario no autenticado');
+        }
+        await createActivity(formData, user.id);
       }
       setIsModalOpen(false);
       loadData();
@@ -140,7 +148,9 @@ export default function ActivitiesAdmin() {
     if (!confirm('¿Estás seguro de que deseas eliminar esta actividad?')) return;
     
     try {
-      await deleteActivity(id);
+      // Si es cliente, verificar que la actividad pertenezca al usuario
+      const userId = isClient ? user?.id : undefined;
+      await deleteActivity(id, userId);
       loadData();
     } catch (err) {
       setError('Error al eliminar la actividad');

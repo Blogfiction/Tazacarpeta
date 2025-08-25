@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { 
-  Plus, Edit2, Trash2, MapPin, Clock, TowerControl as GameController, 
+import { Plus, Edit2, Trash2, MapPin, Clock, TowerControl as GameController, 
   Package, DollarSign, Coins, ChevronDown, ChevronUp, ShoppingBag, AlertCircle,
   Link as LinkIcon,
   ChevronLeft, ChevronRight as ChevronRightIcon
@@ -136,7 +135,7 @@ function renderStoreItem(
 const ITEMS_PER_PAGE = 5;
 
 export default function StoresAdmin() {
-  const { session } = useAuth();
+  const { session, user, isAdmin, isClient } = useAuth();
   const navigate = useNavigate();
   const [stores, setStores] = useState<Store[]>([]);
   const [games, setGames] = useState<Game[]>([]);
@@ -174,7 +173,9 @@ export default function StoresAdmin() {
 
   async function loadStores() {
     try {
-      const data = await getStores();
+      // Si es cliente, filtrar solo sus tiendas; si es admin, mostrar todas
+      const userId = isClient ? user?.id : undefined;
+      const data = await getStores(userId);
       setStores(data);
       
       // Después de cargar las tiendas, cargamos los juegos de cada una
@@ -245,9 +246,15 @@ export default function StoresAdmin() {
     
     try {
       if (currentStore) {
-        await updateStore(currentStore.id_store, formData);
+        // Si es cliente, verificar que la tienda pertenezca al usuario
+        const userId = isClient ? user?.id : undefined;
+        await updateStore(currentStore.id_store, formData, userId);
       } else {
-        await createStore(formData);
+        // Al crear una nueva tienda, siempre se asigna al usuario logueado
+        if (!user?.id) {
+          throw new Error('Usuario no autenticado');
+        }
+        await createStore(formData, user.id);
       }
       setIsModalOpen(false);
       loadStores();
@@ -285,7 +292,9 @@ export default function StoresAdmin() {
     if (!confirm('¿Estás seguro de que deseas eliminar esta tienda?')) return;
     
     try {
-      await deleteStore(id);
+      // Si es cliente, verificar que la tienda pertenezca al usuario
+      const userId = isClient ? user?.id : undefined;
+      await deleteStore(id, userId);
       loadStores();
     } catch (err) {
       setError('Error al eliminar la tienda');

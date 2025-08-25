@@ -108,8 +108,4 @@ export const router = createBrowserRouter([
       </ProtectedRoute>
     ),
   },
-  {
-    path: '*',
-    element: <Navigate to="/" replace />,
-  },
 ]);
