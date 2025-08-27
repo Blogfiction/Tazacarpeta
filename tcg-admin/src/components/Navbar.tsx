@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Calendar as CalendarIcon, Store, TowerControl as GameController, Menu, X, FileText } from 'lucide-react';
+import { LayoutDashboard, Calendar as CalendarIcon, Store, TowerControl as GameController, Menu, X, FileText, Users } from 'lucide-react';
 import UserProfile from './UserProfile';
+import { useAuth } from '../context/AuthContext';
 
 export default function Navbar() {
   const location = useLocation();
+  const { isAdmin } = useAuth();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
 
@@ -26,6 +28,7 @@ export default function Navbar() {
     { name: 'Actividades', href: '/activities', icon: CalendarIcon },
     { name: 'Tiendas', href: '/stores', icon: Store },
     { name: 'Juegos', href: '/games', icon: GameController },
+    ...(isAdmin ? [{ name: 'Usuarios', href: '/users', icon: Users }] : []),
     { name: 'Reportes', href: '/reports', icon: FileText },
   ];
 

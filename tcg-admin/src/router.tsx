@@ -8,6 +8,7 @@ import ActivitiesAdmin from './pages/ActivitiesAdmin';
 import ActivityDetail from './pages/ActivityDetail';
 import StoresAdmin from './pages/StoresAdmin';
 import GamesAdmin from './pages/GamesAdmin';
+import UsersAdmin from './pages/UsersAdmin';
 import Profile from './pages/Profile';
 import Settings from './pages/Settings';
 import Reports from './pages/Reports';
@@ -74,6 +75,16 @@ export const router = createBrowserRouter([
       <ProtectedRoute>
         <Layout>
           <GamesAdmin />
+        </Layout>
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: '/users',
+    element: (
+      <ProtectedRoute>
+        <Layout>
+          <UsersAdmin />
         </Layout>
       </ProtectedRoute>
     ),
