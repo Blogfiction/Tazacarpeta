@@ -37,66 +37,17 @@ export interface Role {
 }
 
 // Obtener todos los usuarios con sus roles
-export async function getAllUsers(): Promise<AdminUser[]> {
-  try {
-    console.log('🔍 getAllUsers: Iniciando búsqueda de usuarios...');
-    
-    // Usar supabaseAdmin para obtener todos los usuarios sin restricciones de políticas
-    console.log('🔍 Ejecutando consulta a tabla users...');
-    
-    // Primero probar con una consulta simple para ver si la tabla existe
-    console.log('🔍 Probando conexión a la tabla users...');
-    const { data: testData, error: testError } = await supabaseAdmin
-      .from('users')
-      .select('*')
-      .limit(1);
-    
-    if (testError) {
-      console.error('❌ Error en consulta de prueba:', testError);
-      throw testError;
-    }
-    
-    console.log('🔍 Datos de prueba:', testData);
-    
-    // Ahora hacer la consulta completa
-    const { data: usersData, error: usersError } = await supabaseAdmin
+  export async function getAllUsers(): Promise<AdminUser[]> {
+    try {
+      // Usar supabaseAdmin para obtener todos los usuarios sin restricciones de políticas
+      const { data: usersData, error: usersError } = await supabaseAdmin
       .from('users')
       .select('id_user, email, first_name, last_name, city, region, country, id_role, created_at, updated_at')
       .order('created_at', { ascending: false });
 
     if (usersError) {
       console.error('❌ Error fetching users:', usersError);
-      console.error('❌ Error details:', {
-        message: usersError.message,
-        details: usersError.details,
-        hint: usersError.hint,
-        code: usersError.code
-      });
       throw usersError;
-    }
-
-    console.log(`✅ Usuarios encontrados: ${usersData?.length || 0}`);
-    console.log('🔍 Datos raw de usuarios:', usersData);
-    
-    // Verificar que cada usuario tenga id_user
-    if (usersData && usersData.length > 0) {
-      usersData.forEach((user, index) => {
-        console.log(`🔍 Usuario ${index + 1}:`, {
-          id_user: user.id_user,
-          email: user.email,
-          first_name: user.first_name,
-          last_name: user.last_name,
-          id_role: user.id_role
-        });
-        
-        // Verificar si id_user es undefined
-        if (user.id_user === undefined) {
-          console.error(`❌ ERROR: Usuario ${index + 1} NO tiene id_user!`);
-          console.error('❌ Usuario completo:', user);
-        }
-      });
-    } else {
-      console.warn('⚠️ No se encontraron usuarios en la base de datos');
     }
 
     // Luego obtener todos los roles
@@ -108,8 +59,6 @@ export async function getAllUsers(): Promise<AdminUser[]> {
       console.error('❌ Error fetching roles:', rolesError);
       throw rolesError;
     }
-
-    console.log(`✅ Roles encontrados: ${rolesData?.length || 0}`, rolesData);
 
     // Crear un mapa de roles para búsqueda rápida
     const rolesMap = new Map(rolesData.map(role => [role.id_role, role]));
@@ -124,7 +73,6 @@ export async function getAllUsers(): Promise<AdminUser[]> {
       };
     }) || [];
 
-    console.log('✅ Resultado final:', result);
     return result;
   } catch (error) {
     console.error('❌ Error in getAllUsers:', error);
@@ -135,8 +83,6 @@ export async function getAllUsers(): Promise<AdminUser[]> {
 // Obtener todos los roles disponibles
 export async function getAllRoles(): Promise<Role[]> {
   try {
-    console.log('🔍 getAllRoles: Obteniendo roles...');
-    
     const { data, error } = await supabaseAdmin
       .from('roles')
       .select('*')
@@ -147,7 +93,6 @@ export async function getAllRoles(): Promise<Role[]> {
       throw error;
     }
 
-    console.log(`✅ Roles obtenidos: ${data?.length || 0}`, data);
     return data || [];
   } catch (error) {
     console.error('❌ Error in getAllRoles:', error);
@@ -158,10 +103,9 @@ export async function getAllRoles(): Promise<Role[]> {
 // Crear un nuevo usuario
 export async function createUser(userData: CreateUserData): Promise<AdminUser> {
   try {
-    console.log('🔍 createUser: Creando usuario...', userData);
+    console.log('🔍 createUser: Creando usuario con email:', userData.email);
     
     // Verificar si el email ya existe en auth.users
-    console.log('🔍 Verificando si el email ya existe...');
     const { data: existingUser, error: checkError } = await supabaseAdmin.auth.admin.listUsers();
     
     if (checkError) {
@@ -174,16 +118,19 @@ export async function createUser(userData: CreateUserData): Promise<AdminUser> {
       throw new Error(`El email ${userData.email} ya está registrado en el sistema`);
     }
     
-    console.log('✅ Email disponible, procediendo a crear usuario...');
-    
-    // Primero crear el usuario en auth.users usando supabaseAdmin
+    // Crear usuario usando supabaseAdmin para NO iniciar sesión automáticamente
+    // Esto evita que se cierre la sesión del admin
     const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
       email: userData.email,
       password: userData.password,
       email_confirm: true,
       user_metadata: {
         first_name: userData.first_name,
-        last_name: userData.last_name
+        last_name: userData.last_name,
+        city: userData.city || null,
+        region: userData.region || null,
+        country: userData.country || null,
+        id_role: userData.id_role
       }
     });
 
@@ -196,56 +143,75 @@ export async function createUser(userData: CreateUserData): Promise<AdminUser> {
       throw new Error('No se pudo crear el usuario');
     }
 
-    console.log('✅ Usuario auth creado:', authData.user.id);
+    console.log('✅ Usuario auth creado exitosamente en auth.users');
+    console.log('🔍 Usuario creado:', authData.user.id);
 
-    // Luego crear el perfil en la tabla users usando supabase (como en signup)
-    console.log('🔍 Insertando perfil en tabla users...');
-    console.log('🔍 Datos a insertar:', {
-      id_user: authData.user.id,
-      first_name: userData.first_name,
-      last_name: userData.last_name,
-      city: userData.city || null,
-      region: userData.region || null,
-      country: userData.country || null,
-      id_role: userData.id_role,
-      email: userData.email
-    });
-
-         // Usar supabaseAdmin para insertar en public.users (evitar problemas de permisos)
-     const { data: profileData, error: profileError } = await supabaseAdmin
-       .from('users')
-       .insert({
-         id_user: authData.user.id,
-         first_name: userData.first_name,
-         last_name: userData.last_name,
-         city: userData.city || null,
-         region: userData.region || null,
-         country: userData.country || null,
-         id_role: userData.id_role,
-         email: userData.email
-       })
-       .select('*')
-       .single();
-
-    if (profileError) {
-      console.error('❌ Error creating user profile:', profileError);
-      console.error('❌ Profile error details:', {
-        message: profileError.message,
-        details: profileError.details,
-        hint: profileError.hint,
-        code: profileError.code
-      });
+    // El trigger automático debería haber creado el perfil en public.users
+    // Primero verificamos que existe el perfil
+    console.log('🔍 Verificando que el perfil existe...');
+    let profileData = null;
+    
+    // Esperar un poco para que el trigger se ejecute
+    await new Promise(resolve => setTimeout(resolve, 200));
+    
+    // Intentar obtener el perfil existente
+    const { data: existingProfile, error: fetchError } = await supabaseAdmin
+      .from('users')
+      .select('*')
+      .eq('id_user', authData.user.id)
+      .single();
+    
+    if (fetchError || !existingProfile) {
+      console.log('⚠️ Perfil no encontrado, creando manualmente...');
+      // Si no existe, lo creamos manualmente
+      const { data: newProfile, error: createError } = await supabaseAdmin
+        .from('users')
+        .insert({
+          id_user: authData.user.id,
+          first_name: userData.first_name,
+          last_name: userData.last_name,
+          city: userData.city || null,
+          region: userData.region || null,
+          country: userData.country || null,
+          id_role: userData.id_role,
+          email: userData.email
+        })
+        .select('*')
+        .single();
       
-      // Si falla el perfil, eliminar el usuario de auth
-      console.log('🔍 Eliminando usuario auth fallido...');
-      const { error: deleteError } = await supabaseAdmin.auth.admin.deleteUser(authData.user.id);
-      if (deleteError) {
-        console.error('❌ Error deleting failed auth user:', deleteError);
+      if (createError) {
+        console.error('❌ Error creating user profile manually:', createError);
+        throw new Error('No se pudo crear el perfil del usuario');
       }
-      throw profileError;
-    }
+      
+      profileData = newProfile;
+      console.log('✅ Perfil creado manualmente:', profileData);
+    } else {
+      console.log('✅ Perfil encontrado, actualizando...');
+      // Si existe, lo actualizamos
+      const { data: updatedProfile, error: updateError } = await supabaseAdmin
+        .from('users')
+        .update({
+          first_name: userData.first_name,
+          last_name: userData.last_name,
+          city: userData.city || null,
+          region: userData.region || null,
+          country: userData.country || null,
+          id_role: userData.id_role
+        })
+        .eq('id_user', authData.user.id)
+        .select('*')
+        .single();
 
-    console.log('✅ Perfil de usuario creado:', profileData);
+      if (updateError) {
+        console.error('❌ Error updating user profile:', updateError);
+        // Usar el perfil existente si falla la actualización
+        profileData = existingProfile;
+      } else {
+        profileData = updatedProfile;
+        console.log('✅ Perfil actualizado exitosamente');
+      }
+    }
 
     // Obtener el rol del usuario creado
     let roleName = null;
@@ -253,11 +219,11 @@ export async function createUser(userData: CreateUserData): Promise<AdminUser> {
     
     if (profileData.id_role) {
       console.log('🔍 Obteniendo información del rol...');
-             const { data: roleData, error: roleError } = await supabaseAdmin
-         .from('roles')
-         .select('role_name, description')
-         .eq('id_role', profileData.id_role)
-         .single();
+      const { data: roleData, error: roleError } = await supabaseAdmin
+        .from('roles')
+        .select('role_name, description')
+        .eq('id_role', profileData.id_role)
+        .single();
       
       if (roleError) {
         console.error('❌ Error fetching role data:', roleError);

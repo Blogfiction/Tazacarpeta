@@ -101,8 +101,22 @@ export default function UsersAdmin() {
       // Recargar datos desde la base de datos para asegurar sincronización
       await loadData();
     } catch (error) {
-      toast.error('Error al crear el usuario');
-      console.error('Error creating user:', error);
+      console.error('❌ Error completo al crear usuario:', error);
+      
+      // Mostrar un mensaje más específico basado en el tipo de error
+      if (error instanceof Error) {
+        if (error.message.includes('email')) {
+          toast.error(`Error: ${error.message}`);
+        } else if (error.message.includes('auth')) {
+          toast.error('Error en la autenticación del usuario');
+        } else if (error.message.includes('public.users') || error.message.includes('profile')) {
+          toast.error('Error al crear el perfil del usuario');
+        } else {
+          toast.error(`Error al crear el usuario: ${error.message}`);
+        }
+      } else {
+        toast.error('Error al crear el usuario');
+      }
     }
   };
 
