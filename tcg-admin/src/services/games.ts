@@ -33,6 +33,7 @@ export async function getGame(id: string): Promise<Game | null> {
 
 export async function createGame(game: Omit<Game, 'id_game' | 'created_at' | 'updated_at'>): Promise<Game> {
   console.log('GamesService: Creating game in Supabase:', game);
+  
   const { data, error } = await supabase
     .from('games')
     .insert([game])
@@ -40,14 +41,13 @@ export async function createGame(game: Omit<Game, 'id_game' | 'created_at' | 'up
     .single()
 
   if (error) {
-    console.error('GamesService: Error creating game:', error);
     throw error
   }
+  
   return data
 }
 
 export async function updateGame(id: string, gameUpdate: Partial<Game>): Promise<Game> {
-  console.log(`GamesService: Updating game ${id} in Supabase:`, gameUpdate);
   const { data, error } = await supabase
     .from('games')
     .update(gameUpdate)
@@ -56,21 +56,18 @@ export async function updateGame(id: string, gameUpdate: Partial<Game>): Promise
     .single()
 
   if (error) {
-    console.error(`GamesService: Error updating game ${id}:`, error);
     throw error
   }
   return data
 }
 
 export async function deleteGame(id: string): Promise<void> {
-  console.log(`GamesService: Deleting game ${id} from Supabase`);
   const { error } = await supabase
     .from('games')
     .delete()
     .eq('id_game', id)
 
   if (error) {
-    console.error(`GamesService: Error deleting game ${id}:`, error);
     throw error
   }
 }
@@ -78,12 +75,9 @@ export async function deleteGame(id: string): Promise<void> {
 // Función para obtener juegos por tienda usando la tabla activities
 export async function getStoreGames(storeId: string): Promise<any[]> {
   if (!storeId) {
-    console.warn('GamesService: storeId is undefined, returning empty array');
     return [];
   }
 
-  console.log(`GamesService: Fetching games for store ${storeId} from activities`);
-  
   try {
     // Obtener actividades de la tienda y luego los juegos asociados
     const { data: activities, error: activitiesError } = await supabase
@@ -93,7 +87,6 @@ export async function getStoreGames(storeId: string): Promise<any[]> {
       .not('id_game', 'is', null);
 
     if (activitiesError) {
-      console.error(`GamesService: Error fetching activities for store ${storeId}:`, activitiesError);
       throw activitiesError;
     }
 

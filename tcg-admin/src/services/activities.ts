@@ -47,9 +47,10 @@ export async function getActivity(id: string, userId?: string): Promise<Activity
 }
 
 export async function createActivity(activity: ActivityInput, userId: string): Promise<Activity> {
-  console.log('ActivitiesService: Creating activity in Supabase:', activity);
+  if (!userId) {
+    throw new Error('User ID is required to create activity');
+  }
   
-  // Agregar created_at si no está presente y asegurar que se cree con el userId
   const activityWithUser = {
     ...activity,
     id_users: userId,
@@ -63,15 +64,13 @@ export async function createActivity(activity: ActivityInput, userId: string): P
     .single()
 
   if (error) {
-    console.error('ActivitiesService: Error creating activity:', error);
     throw error
   }
+  
   return data
 }
 
 export async function updateActivity(id: string, activityUpdate: Partial<ActivityInput>, userId?: string): Promise<Activity> {
-  console.log(`ActivitiesService: Updating activity ${id} in Supabase:`, activityUpdate);
-  
   let query = supabase
     .from('activities')
     .update(activityUpdate)
@@ -87,15 +86,12 @@ export async function updateActivity(id: string, activityUpdate: Partial<Activit
     .single()
 
   if (error) {
-    console.error(`ActivitiesService: Error updating activity ${id}:`, error);
     throw error
   }
   return data
 }
 
 export async function deleteActivity(id: string, userId?: string): Promise<void> {
-  console.log(`ActivitiesService: Deleting activity ${id} from Supabase`);
-  
   let query = supabase
     .from('activities')
     .delete()
@@ -109,14 +105,11 @@ export async function deleteActivity(id: string, userId?: string): Promise<void>
   const { error } = await query;
 
   if (error) {
-    console.error(`ActivitiesService: Error deleting activity ${id}:`, error);
     throw error
   }
 }
 
 export async function getActivitiesByStore(storeId: string, userId?: string): Promise<Activity[]> {
-  console.log(`ActivitiesService: Fetching activities for store ${storeId} from Supabase`);
-  
   let query = supabase
     .from('activities')
     .select('id_activity, name_activity, id_store, id_game, adress_activity, date, reference_link, created_at, updated_at, id_users')
@@ -131,15 +124,12 @@ export async function getActivitiesByStore(storeId: string, userId?: string): Pr
   const { data, error } = await query;
 
   if (error) {
-    console.error(`ActivitiesService: Error fetching activities for store ${storeId}:`, error);
     throw error
   }
   return data || []
 }
 
 export async function getActivitiesByGame(gameId: string, userId?: string): Promise<Activity[]> {
-  console.log(`ActivitiesService: Fetching activities for game ${gameId} from Supabase`);
-  
   let query = supabase
     .from('activities')
     .select('id_activity, name_activity, id_store, id_game, adress_activity, date, reference_link, created_at, updated_at, id_users')
@@ -154,7 +144,6 @@ export async function getActivitiesByGame(gameId: string, userId?: string): Prom
   const { data, error } = await query;
 
   if (error) {
-    console.error(`ActivitiesService: Error fetching activities for game ${gameId}:`, error);
     throw error
   }
   return data || []

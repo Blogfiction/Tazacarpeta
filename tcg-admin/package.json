@@ -15,8 +15,12 @@
     "@react-pdf/renderer": "^4.3.0",
     "@supabase/supabase-js": "^2.39.7",
     "@types/date-fns": "^2.5.3",
+    "@types/recharts": "^1.8.29",
+    "chart.js": "^4.5.0",
+    "chartjs-node-canvas": "^5.0.0",
     "date-fns": "^4.1.0",
     "file-saver": "^2.0.5",
+    "html2canvas": "^1.4.1",
     "jspdf": "^3.0.0",
     "jspdf-autotable": "^5.0.2",
     "lucide-react": "^0.344.0",
@@ -24,7 +28,8 @@
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-hot-toast": "^2.4.1",
-    "react-router-dom": "^6.22.2"
+    "react-router-dom": "^6.22.2",
+    "recharts": "^3.1.2"
   },
   "devDependencies": {
     "@faker-js/faker": "^9.6.0",

@@ -82,6 +82,16 @@ export default function ActivitiesAdmin() {
     e.preventDefault();
     setError('');
     
+    console.log('ActivitiesAdmin: Form submitted with data:', formData);
+    console.log('ActivitiesAdmin: Current user:', user);
+    console.log('ActivitiesAdmin: User ID:', user?.id);
+    
+    // Validar formulario antes de enviar
+    if (!validateForm()) {
+      setError('Por favor completa todos los campos requeridos');
+      return;
+    }
+    
     try {
       if (currentActivity) {
         // Si es cliente, verificar que la actividad pertenezca al usuario
@@ -98,7 +108,7 @@ export default function ActivitiesAdmin() {
       loadData();
       resetForm();
     } catch (err) {
-      setError('Error al guardar la actividad');
+      setError('Error al guardar la actividad: ' + (err as Error).message);
     }
   };
 
@@ -138,7 +148,7 @@ export default function ActivitiesAdmin() {
   };
 
   const validateForm = () => {
-    if (!formData.name_activity || !formData.date || !formData.adress_activity) {
+    if (!formData.name_activity || !formData.date || !formData.adress_activity || !formData.id_game || !formData.id_store) {
       return false;
     }
     return true;

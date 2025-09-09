@@ -78,6 +78,20 @@ export default function GamesAdmin() {
   const validateFormData = () => {
     const errors: string[] = [];
 
+    // Validar campos requeridos
+    if (!formData.name || formData.name.trim() === '') {
+      errors.push('El nombre del juego es requerido');
+    }
+
+    if (!formData.description || formData.description.trim() === '') {
+      errors.push('La descripción es requerida');
+    }
+
+    if (!formData.category || formData.category.trim() === '') {
+      errors.push('La categoría es requerida');
+    }
+
+    // Validar rangos
     if (formData.max_age && formData.max_age < formData.min_age) {
       errors.push('La edad máxima debe ser mayor que la edad mínima');
     }

@@ -67,13 +67,13 @@ export default function ReportGenerator() {
         ]);
         
         setStores(storesData.map(store => ({ 
-          id: store.id_tienda, 
-          nombre: store.nombre 
+          id: store.id_store, 
+          nombre: store.name_store 
         })));
         
         setGames(gamesData.map(game => ({ 
-          id: game.id_juego, 
-          nombre: game.nombre 
+          id: game.id_game, 
+          nombre: game.name 
         })));
       } catch (error) {
         console.error('Error al cargar opciones de filtro:', error);
@@ -314,6 +314,51 @@ export default function ReportGenerator() {
             <div className="font-medium">Juegos</div>
             <div className="text-xs text-gray-500 mt-1">
               Catálogo completo de juegos
+            </div>
+          </button>
+          
+          <button
+            type="button"
+            className={`p-4 text-left rounded-lg border ${
+              reportType === 'history'
+                ? 'border-blue-500 bg-blue-50'
+                : 'border-gray-200 hover:bg-gray-50'
+            }`}
+            onClick={() => setReportType('history')}
+          >
+            <div className="font-medium">Historial</div>
+            <div className="text-xs text-gray-500 mt-1">
+              Registro de actividades realizadas
+            </div>
+          </button>
+          
+          <button
+            type="button"
+            className={`p-4 text-left rounded-lg border ${
+              reportType === 'searches'
+                ? 'border-blue-500 bg-blue-50'
+                : 'border-gray-200 hover:bg-gray-50'
+            }`}
+            onClick={() => setReportType('searches')}
+          >
+            <div className="font-medium">Búsquedas</div>
+            <div className="text-xs text-gray-500 mt-1">
+              Análisis de términos buscados
+            </div>
+          </button>
+          
+          <button
+            type="button"
+            className={`p-4 text-left rounded-lg border ${
+              reportType === 'users'
+                ? 'border-blue-500 bg-blue-50'
+                : 'border-gray-200 hover:bg-gray-50'
+            }`}
+            onClick={() => setReportType('users')}
+          >
+            <div className="font-medium">Usuarios</div>
+            <div className="text-xs text-gray-500 mt-1">
+              Información de usuarios registrados
             </div>
           </button>
         </div>

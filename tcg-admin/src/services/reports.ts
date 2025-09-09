@@ -13,11 +13,12 @@ import {
   createFakeStoreInventory, createFakeStoreGame 
 } from '../lib/fakeData';
 import { faker } from '@faker-js/faker/locale/es_MX';
+import { supabase } from '../lib/supabaseClient';
 
 /**
  * Tipo de reporte a generar
  */
-export type ReportType = 'activities' | 'stores' | 'games' | 'dashboard';
+export type ReportType = 'activities' | 'stores' | 'games' | 'dashboard' | 'history' | 'searches' | 'users';
 
 /**
  * Opciones para generar un reporte
@@ -52,7 +53,7 @@ interface ReportMetrics {
   totalStores: number;
   totalGames: number;
   activitiesByMonth: Record<string, number>;
-  storesByPlan?: Record<string, number>;
+  storesByRegion?: Record<string, number>;
   gamesByCategory?: Record<string, number>;
 }
 
@@ -88,8 +89,8 @@ class ReportService {
     if (Object.keys(this.FAKE_STORE_INVENTORY).length === 0) {
       this.FAKE_STORES.forEach(store => {
         const inventoryGames = this.FAKE_GAMES.filter(() => Math.random() > 0.3); // ~70% of games in inventory
-        this.FAKE_STORE_INVENTORY[store.id_tienda] = inventoryGames.map(game => 
-            createFakeStoreGame(store.id_tienda, game.id_juego, { 
+        this.FAKE_STORE_INVENTORY[store.id_store] = inventoryGames.map(game => 
+            createFakeStoreGame(store.id_store, game.id_game, { 
                 precio: parseFloat(faker.commerce.price({ min: 5000, max: 50000, dec: 0 }))
             })
         );
@@ -142,8 +143,11 @@ class ReportService {
    */
   async generateReport(options: ReportOptions): Promise<Blob> {
     try {
+      console.log('Iniciando generación de reporte:', options);
+      
       // Cargar los datos según el tipo de reporte
       const data = await this.fetchData(options);
+      console.log('Datos obtenidos para el reporte:', data);
       
       // Crear el documento PDF
       const doc = new jsPDF();
@@ -181,10 +185,12 @@ class ReportService {
       
       // Exportar como blob
       const pdfBlob = doc.output('blob');
+      console.log('PDF generado exitosamente, tamaño:', pdfBlob.size);
       return pdfBlob;
     } catch (error) {
       console.error('Error al generar el reporte:', error);
-      throw new Error('No se pudo generar el reporte');
+      console.error('Opciones del reporte:', options);
+      throw new Error(`No se pudo generar el reporte: ${error instanceof Error ? error.message : 'Error desconocido'}`);
     }
   }
   
@@ -230,6 +236,12 @@ class ReportService {
         return 'Reporte de Juegos';
       case 'dashboard':
         return 'Dashboard General';
+      case 'history':
+        return 'Reporte de Historial de Actividades';
+      case 'searches':
+        return 'Reporte de Búsquedas';
+      case 'users':
+        return 'Reporte de Usuarios';
       default:
         return 'Reporte TCG Admin';
     }
@@ -249,6 +261,12 @@ class ReportService {
           return this.fetchGamesData(options);
         case 'dashboard':
           return this.fetchDashboardData(options);
+        case 'history':
+          return this.fetchHistoryData(options);
+        case 'searches':
+          return this.fetchSearchesData(options);
+        case 'users':
+          return this.fetchUsersData(options);
         default:
           throw new Error('Tipo de reporte no soportado');
       }
@@ -267,7 +285,7 @@ class ReportService {
     // Aplicar filtros
     if (options.dateFrom || options.dateTo || options.filters) {
       activities = activities.filter(activity => {
-        const activityDate = new Date(activity.fecha);
+        const activityDate = new Date(activity.date);
         
         // Filtro por fecha desde
         if (options.dateFrom && activityDate < options.dateFrom) {
@@ -294,7 +312,7 @@ class ReportService {
     
     // Ordenar por fecha
     return activities.sort((a, b) => {
-      return new Date(a.fecha).getTime() - new Date(b.fecha).getTime();
+      return new Date(a.date).getTime() - new Date(b.date).getTime();
     });
   }
   
@@ -317,7 +335,7 @@ class ReportService {
     }
     
     // Ordenar por nombre
-    return stores.sort((a, b) => a.nombre.localeCompare(b.nombre));
+    return stores.sort((a, b) => a.name_store.localeCompare(b.name_store));
   }
   
   /**
@@ -339,7 +357,7 @@ class ReportService {
     }
     
     // Ordenar por nombre
-    return games.sort((a, b) => a.nombre.localeCompare(b.nombre));
+    return games.sort((a, b) => a.name.localeCompare(b.name));
   }
   
   /**
@@ -365,25 +383,26 @@ class ReportService {
       
       // Calcular métricas clave
       const now = new Date();
-      const upcomingActivities = activities.filter(a => new Date(a.fecha) > now);
-      const pastActivities = activities.filter(a => new Date(a.fecha) <= now);
+      const upcomingActivities = activities.filter(a => new Date(a.date) > now);
+      const pastActivities = activities.filter(a => new Date(a.date) <= now);
       
       // Agrupar actividades por mes
       const activitiesByMonth = this.groupActivitiesByMonth(activities);
       
-      // Agrupar tiendas por plan
-      const storesByPlan: Record<string, number> = {};
+      // Agrupar tiendas por región
+      const storesByRegion: Record<string, number> = {};
       stores.forEach(store => {
-        if (!storesByPlan[store.plan]) {
-          storesByPlan[store.plan] = 0;
+        const region = 'Región General'; // Placeholder since region is not in Store interface
+        if (!storesByRegion[region]) {
+          storesByRegion[region] = 0;
         }
-        storesByPlan[store.plan]++;
+        storesByRegion[region]++;
       });
       
       // Agrupar juegos por categoría
       const gamesByCategory: Record<string, number> = {};
       games.forEach(game => {
-        const category = game.categoria || 'Sin categoría';
+        const category = game.category || 'Sin categoría';
         if (!gamesByCategory[category]) {
           gamesByCategory[category] = 0;
         }
@@ -401,7 +420,7 @@ class ReportService {
           totalStores: stores.length,
           totalGames: games.length,
           activitiesByMonth,
-          storesByPlan,
+          storesByRegion,
           gamesByCategory
         }
       };
@@ -418,7 +437,7 @@ class ReportService {
     const result: Record<string, number> = {};
     
     activities.forEach(activity => {
-      const date = new Date(activity.fecha);
+      const date = new Date(activity.date);
       const monthYear = this.formatDateString(date, 'yyyy-MM');
       
       if (!result[monthYear]) {
@@ -436,6 +455,8 @@ class ReportService {
    */
   private async addReportContent(doc: jsPDF, options: ReportOptions, data: any): Promise<void> {
     try {
+      console.log(`Generando contenido para reporte ${options.type}:`, data);
+      
       switch (options.type) {
         case 'activities':
           this.addActivitiesContent(doc, data);
@@ -449,13 +470,28 @@ class ReportService {
         case 'dashboard':
           this.addDashboardContent(doc, data);
           break;
+        case 'history':
+          this.addHistoryContent(doc, data);
+          break;
+        case 'searches':
+          this.addSearchesContent(doc, data);
+          break;
+        case 'users':
+          this.addUsersContent(doc, data);
+          break;
+        default:
+          throw new Error(`Tipo de reporte no soportado: ${options.type}`);
       }
     } catch (error) {
       console.error(`Error al añadir contenido al reporte ${options.type}:`, error);
+      console.error('Datos recibidos:', data);
       // Añadir mensaje de error al documento
       doc.setFontSize(12);
       doc.setTextColor(255, 0, 0);
-      doc.text('Error al generar el contenido del reporte. Inténtalo de nuevo más tarde.', 14, 100);
+      doc.text(`Error al generar el contenido del reporte ${options.type}.`, 14, 100);
+      doc.text('Detalles del error:', 14, 110);
+      doc.setFontSize(10);
+      doc.text(error instanceof Error ? error.message : 'Error desconocido', 14, 120);
       doc.setTextColor(0, 0, 0);
     }
   }
@@ -473,14 +509,14 @@ class ReportService {
     // Añadir tabla de actividades
     const tableColumn = ['Nombre', 'Fecha', 'Ubicación', 'Juego ID', 'Tienda ID'];
     const tableRows = activities.map(activity => {
-      const formattedDate = this.formatDateString(new Date(activity.fecha), 'dd/MM/yyyy HH:mm');
+      const formattedDate = this.formatDateString(new Date(activity.date), 'dd/MM/yyyy HH:mm');
       
       return [
-        activity.nombre,
+        activity.name_activity,
         formattedDate, 
-        activity.ubicacion,
-        activity.id_juego || 'N/A',
-        activity.id_tienda || 'N/A'
+        activity.adress_activity,
+        activity.id_game || 'N/A',
+        activity.id_store || 'N/A'
       ];
     });
     
@@ -491,8 +527,8 @@ class ReportService {
     doc.text(`Total de actividades: ${activities.length}`, 14, 48);
     
     const now = new Date();
-    const upcomingActivities = activities.filter(a => new Date(a.fecha) > now);
-    const pastActivities = activities.filter(a => new Date(a.fecha) <= now);
+    const upcomingActivities = activities.filter(a => new Date(a.date) > now);
+    const pastActivities = activities.filter(a => new Date(a.date) <= now);
     
     doc.text(`Actividades futuras: ${upcomingActivities.length}`, 14, 54);
     doc.text(`Actividades pasadas: ${pastActivities.length}`, 14, 60);
@@ -544,33 +580,34 @@ class ReportService {
     doc.setFontSize(10);
     doc.text(`Total de tiendas: ${stores.length}`, 14, 48);
     
-    // Agrupar por plan
-    const storesByPlan: Record<string, number> = {};
+    // Agrupar por región
+    const storesByRegion: Record<string, number> = {};
     stores.forEach(store => {
-      if (!storesByPlan[store.plan]) {
-        storesByPlan[store.plan] = 0;
+      const region = 'Región General'; // Placeholder since region is not in Store interface
+      if (!storesByRegion[region]) {
+        storesByRegion[region] = 0;
       }
-      storesByPlan[store.plan]++;
+      storesByRegion[region]++;
     });
     
     let y = 54;
-    doc.text('Tiendas por plan:', 14, y);
+    doc.text('Tiendas por región:', 14, y);
     y += 6;
     
-    Object.entries(storesByPlan).forEach(([plan, count], index) => {
-      doc.text(`- ${plan}: ${count}`, 20, y + (index * 6));
+    Object.entries(storesByRegion).forEach(([region, count], index) => {
+      doc.text(`- ${region}: ${count}`, 20, y + (index * 6));
     });
     
-    y += (Object.keys(storesByPlan).length * 6) + 6;
+    y += (Object.keys(storesByRegion).length * 6) + 6;
     
     // Añadir tabla de tiendas
-    const tableColumn = ['Nombre', 'Dirección', 'Ciudad', 'Plan'];
+    const tableColumn = ['Nombre', 'Dirección', 'Teléfono', 'Email'];
     const tableRows = stores.map(store => {
       return [
-        store.nombre,
-        `${store.direccion.calle} ${store.direccion.numero}`,
-        store.direccion.ciudad,
-        store.plan
+        store.name_store,
+        store.adress,
+        store.phone || 'N/A',
+        store.email || 'N/A'
       ];
     });
     
@@ -623,7 +660,7 @@ class ReportService {
     // Agrupar por categoría
     const gamesByCategory: Record<string, number> = {};
     games.forEach(game => {
-      const category = game.categoria || 'Sin categoría';
+      const category = game.category || 'Sin categoría';
       if (!gamesByCategory[category]) {
         gamesByCategory[category] = 0;
       }
@@ -644,9 +681,9 @@ class ReportService {
     const tableColumn = ['Nombre', 'Descripción', 'Categoría'];
     const tableRows = games.map(game => {
       return [
-        game.nombre,
-        game.descripcion?.substring(0, 80) + (game.descripcion && game.descripcion.length > 80 ? '...' : '') || 'N/A',
-        game.categoria || 'Sin categoría'
+        game.name,
+        game.description?.substring(0, 80) + (game.description && game.description.length > 80 ? '...' : '') || 'N/A',
+        game.category || 'Sin categoría'
       ];
     });
     
@@ -777,7 +814,7 @@ class ReportService {
       }
       
       // Verificar si hay datos para el gráfico de tiendas por plan
-      if (metrics.storesByPlan && Object.keys(metrics.storesByPlan).length > 0) {
+      if (metrics.storesByRegion && Object.keys(metrics.storesByRegion).length > 0) {
         // Si estamos muy abajo en la página, añadir una nueva
         if (y > 200) {
           doc.addPage();
@@ -790,8 +827,8 @@ class ReportService {
         
         try {
           // Crear un gráfico de pastel simple
-          const plans = Object.keys(metrics.storesByPlan);
-          const storesCounts = plans.map(plan => metrics.storesByPlan![plan] || 0);
+          const regions = Object.keys(metrics.storesByRegion);
+          const storesCounts = regions.map(region => metrics.storesByRegion![region] || 0);
           const total = storesCounts.reduce((sum, count) => sum + count, 0);
           
           if (total > 0) {
@@ -805,8 +842,8 @@ class ReportService {
             doc.setFontSize(10);
             doc.text('Leyenda:', 14, y);
             
-            plans.forEach((plan, index) => {
-              const count = metrics.storesByPlan![plan] || 0;
+            regions.forEach((region, index) => {
+              const count = metrics.storesByRegion![region] || 0;
               const percentage = (count / total) * 100;
               const angle = (percentage / 100) * 2 * Math.PI;
               const endAngle = startAngle + angle;
@@ -824,7 +861,7 @@ class ReportService {
               // Añadir a leyenda
               doc.setFillColor(color[0], color[1], color[2]);
               doc.rect(14, y + 5 + (index * 10), 5, 5, 'F');
-              doc.text(`${plan}: ${count} (${percentage.toFixed(1)}%)`, 24, y + 10 + (index * 10));
+              doc.text(`${region}: ${count} (${percentage.toFixed(1)}%)`, 24, y + 10 + (index * 10));
               
               startAngle = endAngle;
             });
@@ -876,6 +913,251 @@ class ReportService {
     // Volver al centro
     doc.lineTo(x, y);
     doc.fill();
+  }
+
+  /**
+   * Obtiene datos de historial con filtros aplicados
+   */
+  private async fetchHistoryData(options: ReportOptions): Promise<any[]> {
+    try {
+      let query = supabase
+        .from('history')
+        .select(`
+          *,
+          stores(name_store),
+          activities(name_activity),
+          users(first_name, last_name)
+        `)
+        .order('created_at', { ascending: false });
+
+      // Aplicar filtros de fecha
+      if (options.dateFrom) {
+        query = query.gte('created_at', options.dateFrom.toISOString());
+      }
+      if (options.dateTo) {
+        query = query.lte('created_at', options.dateTo.toISOString());
+      }
+
+      // Aplicar filtros específicos
+      if (options.filters) {
+        for (const [key, value] of Object.entries(options.filters)) {
+          if (value) {
+            query = query.eq(key, value);
+          }
+        }
+      }
+
+      const { data, error } = await query;
+      if (error) {
+        console.error('Error en consulta de historial:', error);
+        throw error;
+      }
+
+      return data || [];
+    } catch (error) {
+      console.error('Error obteniendo datos de historial:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Obtiene datos de búsquedas con filtros aplicados
+   */
+  private async fetchSearchesData(options: ReportOptions): Promise<any[]> {
+    try {
+      let query = supabase
+        .from('searches')
+        .select(`
+          *,
+          users(first_name, last_name)
+        `)
+        .order('date_time', { ascending: false });
+
+      // Aplicar filtros de fecha
+      if (options.dateFrom) {
+        query = query.gte('date_time', options.dateFrom.toISOString());
+      }
+      if (options.dateTo) {
+        query = query.lte('date_time', options.dateTo.toISOString());
+      }
+
+      // Aplicar filtros específicos
+      if (options.filters) {
+        for (const [key, value] of Object.entries(options.filters)) {
+          if (value) {
+            query = query.eq(key, value);
+          }
+        }
+      }
+
+      const { data, error } = await query;
+      if (error) {
+        console.error('Error en consulta de búsquedas:', error);
+        throw error;
+      }
+
+      return data || [];
+    } catch (error) {
+      console.error('Error obteniendo datos de búsquedas:', error);
+      return [];
+    }
+  }
+
+
+  /**
+   * Obtiene datos de usuarios con filtros aplicados
+   */
+  private async fetchUsersData(options: ReportOptions): Promise<any[]> {
+    try {
+      let query = supabase
+        .from('users')
+        .select(`
+          *,
+          roles(role_name),
+          plans(plan_name)
+        `)
+        .order('created_at', { ascending: false });
+
+      // Aplicar filtros de fecha
+      if (options.dateFrom) {
+        query = query.gte('created_at', options.dateFrom.toISOString());
+      }
+      if (options.dateTo) {
+        query = query.lte('created_at', options.dateTo.toISOString());
+      }
+
+      // Aplicar filtros específicos
+      if (options.filters) {
+        for (const [key, value] of Object.entries(options.filters)) {
+          if (value) {
+            query = query.eq(key, value);
+          }
+        }
+      }
+
+      const { data, error } = await query;
+      if (error) {
+        console.error('Error en consulta de usuarios:', error);
+        throw error;
+      }
+
+      return data || [];
+    } catch (error) {
+      console.error('Error obteniendo datos de usuarios:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Añade contenido de historial al PDF
+   */
+  private addHistoryContent(doc: jsPDF, history: any[]): void {
+    if (history.length === 0) {
+      doc.setFontSize(12);
+      doc.text('No hay datos de historial disponibles.', 14, 50);
+      return;
+    }
+
+    // Título de sección
+    doc.setFontSize(14);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Historial de Actividades', 14, 50);
+
+    // Preparar datos para la tabla
+    const tableData = history.map((item, index) => [
+      index + 1,
+      item.stores?.name_store || 'N/A',
+      item.activities?.name_activity || 'N/A',
+      item.tipe_activity || 'N/A',
+      item.users ? `${item.users.first_name} ${item.users.last_name}` : 'N/A',
+      this.formatDateString(new Date(item.created_at), 'dd/MM/yyyy HH:mm')
+    ]);
+
+    // Crear tabla
+    (doc as any).autoTable({
+      head: [['#', 'Tienda', 'Actividad', 'Tipo', 'Usuario', 'Fecha']],
+      body: tableData,
+      startY: 60,
+      styles: { fontSize: 8 },
+      headStyles: { fillColor: [59, 130, 246] },
+      alternateRowStyles: { fillColor: [249, 250, 251] }
+    });
+  }
+
+  /**
+   * Añade contenido de búsquedas al PDF
+   */
+  private addSearchesContent(doc: jsPDF, searches: any[]): void {
+    if (searches.length === 0) {
+      doc.setFontSize(12);
+      doc.text('No hay datos de búsquedas disponibles.', 14, 50);
+      return;
+    }
+
+    // Título de sección
+    doc.setFontSize(14);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Reporte de Búsquedas', 14, 50);
+
+    // Preparar datos para la tabla
+    const tableData = searches.map((item, index) => [
+      index + 1,
+      item.search_type || 'N/A',
+      item.search_term || 'N/A',
+      item.users ? `${item.users.first_name} ${item.users.last_name}` : 'N/A',
+      item.total_searches || 0,
+      this.formatDateString(new Date(item.date_time), 'dd/MM/yyyy HH:mm')
+    ]);
+
+    // Crear tabla
+    (doc as any).autoTable({
+      head: [['#', 'Tipo', 'Término', 'Usuario', 'Total', 'Fecha']],
+      body: tableData,
+      startY: 60,
+      styles: { fontSize: 8 },
+      headStyles: { fillColor: [59, 130, 246] },
+      alternateRowStyles: { fillColor: [249, 250, 251] }
+    });
+  }
+
+
+  /**
+   * Añade contenido de usuarios al PDF
+   */
+  private addUsersContent(doc: jsPDF, users: any[]): void {
+    if (users.length === 0) {
+      doc.setFontSize(12);
+      doc.text('No hay datos de usuarios disponibles.', 14, 50);
+      return;
+    }
+
+    // Título de sección
+    doc.setFontSize(14);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Reporte de Usuarios', 14, 50);
+
+    // Preparar datos para la tabla
+    const tableData = users.map((item, index) => [
+      index + 1,
+      item.first_name || 'N/A',
+      item.last_name || 'N/A',
+      item.email || 'N/A',
+      item.roles?.role_name || 'N/A',
+      item.plans?.plan_name || 'N/A',
+      item.city || 'N/A',
+      item.region || 'N/A',
+      this.formatDateString(new Date(item.created_at), 'dd/MM/yyyy')
+    ]);
+
+    // Crear tabla
+    (doc as any).autoTable({
+      head: [['#', 'Nombre', 'Apellido', 'Email', 'Rol', 'Plan', 'Ciudad', 'Región', 'Fecha Registro']],
+      body: tableData,
+      startY: 60,
+      styles: { fontSize: 7 },
+      headStyles: { fillColor: [59, 130, 246] },
+      alternateRowStyles: { fillColor: [249, 250, 251] }
+    });
   }
 
   /**
