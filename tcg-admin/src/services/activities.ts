@@ -71,9 +71,15 @@ export async function createActivity(activity: ActivityInput, userId: string): P
 }
 
 export async function updateActivity(id: string, activityUpdate: Partial<ActivityInput>, userId?: string): Promise<Activity> {
+  // Agregar updated_at con la fecha y hora actual
+  const updateData = {
+    ...activityUpdate,
+    updated_at: new Date().toISOString()
+  };
+
   let query = supabase
     .from('activities')
-    .update(activityUpdate)
+    .update(updateData)
     .eq('id_activity', id);
 
   // Si se proporciona userId, verificar que la actividad pertenezca al usuario
