@@ -5,8 +5,6 @@ import { Activity, Store, Game, StoreGame } from '../types/database';
 import { getActivities as realGetActivities } from './activities';
 import { getStores as realGetStores } from './stores';
 import { getGames as realGetGames, getStoreGames as realGetStoreGames } from './games';
-import { format as formatDate } from 'date-fns';
-import { es } from 'date-fns/locale';
 import { isDevModeActive } from '../lib/devModeUtils';
 import { 
   createFakeActivities, createFakeStores, createFakeGames, 
@@ -14,55 +12,11 @@ import {
 } from '../lib/fakeData';
 import { faker } from '@faker-js/faker/locale/es_MX';
 import { supabase } from '../lib/supabaseClient';
+import { ReportType, ReportOptions, ReportMetrics, DashboardData } from './reports/reportTypes';
+import { formatDateString, groupActivitiesByMonth } from './reports/reportUtils';
 
-/**
- * Tipo de reporte a generar
- */
-export type ReportType = 'activities' | 'stores' | 'games' | 'dashboard' | 'history' | 'searches' | 'users';
-
-/**
- * Opciones para generar un reporte
- */
-export interface ReportOptions {
-  // Tipo de reporte a generar
-  type: ReportType;
-  
-  // Título personalizado para el reporte
-  title?: string;
-  
-  // Nombre del archivo a descargar
-  filename?: string;
-  
-  // Filtro por fecha: desde
-  dateFrom?: Date;
-  
-  // Filtro por fecha: hasta
-  dateTo?: Date;
-  
-  // Filtros específicos (id_tienda, id_juego, etc)
-  filters?: Record<string, any>;
-  
-  // Incluir gráficos en el reporte
-  includeCharts?: boolean;
-}
-
-interface ReportMetrics {
-  totalActivities: number;
-  upcomingActivities: number;
-  pastActivities: number;
-  totalStores: number;
-  totalGames: number;
-  activitiesByMonth: Record<string, number>;
-  storesByRegion?: Record<string, number>;
-  gamesByCategory?: Record<string, number>;
-}
-
-interface DashboardData {
-  activities: Activity[];
-  stores: Store[];
-  games: Game[];
-  metrics: ReportMetrics;
-}
+// Re-exportar tipos para compatibilidad
+export type { ReportType, ReportOptions };
 
 /**
  * Servicio para generar reportes en PDF
@@ -155,7 +109,7 @@ class ReportService {
       // Añadir título y metadatos
       const title = options.title || this.getDefaultTitle(options.type);
       const now = new Date();
-      const formattedDate = this.formatDateString(now, 'dd/MM/yyyy');
+      const formattedDate = formatDateString(now, 'dd/MM/yyyy');
       
       // Configurar metadatos del documento
       doc.setProperties({
@@ -205,7 +159,7 @@ class ReportService {
         throw new Error('El reporte generado está vacío');
       }
       
-      const filename = options.filename || `${options.type}-report-${this.formatDateString(new Date(), 'yyyy-MM-dd')}.pdf`;
+      const filename = options.filename || `${options.type}-report-${formatDateString(new Date(), 'yyyy-MM-dd')}.pdf`;
       saveAs(blob, filename);
     } catch (error) {
       console.error('Error al descargar el reporte:', error);
@@ -434,20 +388,7 @@ class ReportService {
    * Agrupa actividades por mes para análisis de tendencias
    */
   private groupActivitiesByMonth(activities: Activity[]): Record<string, number> {
-    const result: Record<string, number> = {};
-    
-    activities.forEach(activity => {
-      const date = new Date(activity.date);
-      const monthYear = this.formatDateString(date, 'yyyy-MM');
-      
-      if (!result[monthYear]) {
-        result[monthYear] = 0;
-      }
-      
-      result[monthYear]++;
-    });
-    
-    return result;
+    return groupActivitiesByMonth(activities);
   }
   
   /**
@@ -509,7 +450,7 @@ class ReportService {
     // Añadir tabla de actividades
     const tableColumn = ['Nombre', 'Fecha', 'Ubicación', 'Juego ID', 'Tienda ID'];
     const tableRows = activities.map(activity => {
-      const formattedDate = this.formatDateString(new Date(activity.date), 'dd/MM/yyyy HH:mm');
+      const formattedDate = formatDateString(new Date(activity.date), 'dd/MM/yyyy HH:mm');
       
       return [
         activity.name_activity,
@@ -1070,7 +1011,7 @@ class ReportService {
       item.activities?.name_activity || 'N/A',
       item.tipe_activity || 'N/A',
       item.users ? `${item.users.first_name} ${item.users.last_name}` : 'N/A',
-      this.formatDateString(new Date(item.created_at), 'dd/MM/yyyy HH:mm')
+      formatDateString(new Date(item.created_at), 'dd/MM/yyyy HH:mm')
     ]);
 
     // Crear tabla
@@ -1106,7 +1047,7 @@ class ReportService {
       item.search_term || 'N/A',
       item.users ? `${item.users.first_name} ${item.users.last_name}` : 'N/A',
       item.total_searches || 0,
-      this.formatDateString(new Date(item.date_time), 'dd/MM/yyyy HH:mm')
+      formatDateString(new Date(item.date_time), 'dd/MM/yyyy HH:mm')
     ]);
 
     // Crear tabla
@@ -1146,7 +1087,7 @@ class ReportService {
       item.plans?.plan_name || 'N/A',
       item.city || 'N/A',
       item.region || 'N/A',
-      this.formatDateString(new Date(item.created_at), 'dd/MM/yyyy')
+      formatDateString(new Date(item.created_at), 'dd/MM/yyyy')
     ]);
 
     // Crear tabla
@@ -1160,17 +1101,6 @@ class ReportService {
     });
   }
 
-  /**
-   * Formatea una fecha en string con formato específico
-   */
-  private formatDateString(date: Date, formatStr: string): string {
-    try {
-      return formatDate(date, formatStr);
-    } catch (error) {
-      console.error('Error al formatear fecha:', error);
-      return date.toLocaleDateString('es-ES');
-    }
-  }
 }
 
 export const reportService = new ReportService(); 

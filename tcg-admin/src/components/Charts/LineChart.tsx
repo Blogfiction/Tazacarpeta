@@ -1,3 +1,4 @@
+import React from 'react';
 import { LineChart as RechartsLineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 
 interface LineChartData {
@@ -21,7 +22,7 @@ interface LineChartProps {
   showLegend?: boolean;
 }
 
-export default function LineChart({
+function LineChart({
   data,
   title,
   xAxisKey = 'period',
@@ -85,3 +86,5 @@ export default function LineChart({
     </div>
   );
 }
+
+export default React.memo(LineChart);

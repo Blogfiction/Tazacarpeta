@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { 
   BarChart3, 
   Users, 
@@ -17,6 +17,11 @@ interface ReportAnalyticsProps {
   onExportPDF?: (data: DashboardMetrics) => void;
 }
 
+// Función helper para truncar texto
+const truncateText = (text: string, maxLength: number): string => {
+  return text.length > maxLength ? text.substring(0, maxLength) + '...' : text;
+};
+
 export default function ReportAnalytics({ onExportPDF }: ReportAnalyticsProps) {
   const [metrics, setMetrics] = useState<DashboardMetrics | null>(null);
   const [loading, setLoading] = useState(true);
@@ -29,7 +34,7 @@ export default function ReportAnalytics({ onExportPDF }: ReportAnalyticsProps) {
     loadMetrics();
   }, [filters]);
 
-  const loadMetrics = async () => {
+  const loadMetrics = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -42,21 +47,58 @@ export default function ReportAnalytics({ onExportPDF }: ReportAnalyticsProps) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [filters]);
 
-  const handleFilterChange = (newFilters: Partial<ReportFilters>) => {
+  const handleFilterChange = useCallback((newFilters: Partial<ReportFilters>) => {
     setFilters(prev => ({ ...prev, ...newFilters }));
-  };
+  }, []);
 
-  const resetFilters = () => {
+  const resetFilters = useCallback(() => {
     setFilters({});
-  };
+  }, []);
 
-  const handleExportPDF = () => {
+  const handleExportPDF = useCallback(() => {
     if (metrics && onExportPDF) {
       onExportPDF(metrics);
     }
-  };
+  }, [metrics, onExportPDF]);
+
+  // Memoizar transformaciones de datos para gráficos (solo cuando cambian los datos)
+  const storesChartData = useMemo(() => {
+    if (!metrics?.topStores || metrics.topStores.length === 0) return [];
+    return metrics.topStores.map(store => ({
+      name: truncateText(store.name_store, 15),
+      value: store.visits,
+      fullName: store.name_store
+    }));
+  }, [metrics?.topStores]);
+
+  const gamesChartData = useMemo(() => {
+    if (!metrics?.topGames || metrics.topGames.length === 0) return [];
+    return metrics.topGames.map(game => ({
+      name: truncateText(game.name, 15),
+      value: game.clicks,
+      fullName: game.name
+    }));
+  }, [metrics?.topGames]);
+
+  const playedGamesChartData = useMemo(() => {
+    if (!metrics?.topPlayedGames || metrics.topPlayedGames.length === 0) return [];
+    return metrics.topPlayedGames.map(game => ({
+      name: truncateText(game.name, 15),
+      value: game.clicks,
+      fullName: game.name
+    }));
+  }, [metrics?.topPlayedGames]);
+
+  const categoriesChartData = useMemo(() => {
+    if (!metrics?.gameCategoryParticipation || metrics.gameCategoryParticipation.length === 0) return [];
+    return metrics.gameCategoryParticipation.map(category => ({
+      name: truncateText(category.category, 15),
+      value: category.participation_count,
+      fullName: category.category
+    }));
+  }, [metrics?.gameCategoryParticipation]);
 
   if (loading) {
     return (
@@ -214,11 +256,7 @@ export default function ReportAnalytics({ onExportPDF }: ReportAnalyticsProps) {
         {/* Tiendas más visitadas */}
         <div className="bg-white p-6 rounded-lg shadow-md">
           <BarChart
-            data={metrics.topStores.map(store => ({
-              name: store.name_store.length > 15 ? store.name_store.substring(0, 15) + '...' : store.name_store,
-              value: store.visits,
-              fullName: store.name_store
-            }))}
+            data={storesChartData}
             title="Tiendas Más Visitadas"
             xAxisKey="name"
             yAxisKey="value"
@@ -229,11 +267,7 @@ export default function ReportAnalytics({ onExportPDF }: ReportAnalyticsProps) {
         {/* Juegos más clickeados */}
         <div className="bg-white p-6 rounded-lg shadow-md">
           <BarChart
-            data={metrics.topGames.map(game => ({
-              name: game.name.length > 15 ? game.name.substring(0, 15) + '...' : game.name,
-              value: game.clicks,
-              fullName: game.name
-            }))}
+            data={gamesChartData}
             title="Juegos Más Clickeados"
             xAxisKey="name"
             yAxisKey="value"
@@ -244,11 +278,7 @@ export default function ReportAnalytics({ onExportPDF }: ReportAnalyticsProps) {
         {/* Juegos más jugados en actividades */}
         <div className="bg-white p-6 rounded-lg shadow-md">
           <BarChart
-            data={metrics.topPlayedGames.map(game => ({
-              name: game.name.length > 15 ? game.name.substring(0, 15) + '...' : game.name,
-              value: game.clicks,
-              fullName: game.name
-            }))}
+            data={playedGamesChartData}
             title="Juegos Más Jugados en Actividades"
             xAxisKey="name"
             yAxisKey="value"
@@ -259,11 +289,7 @@ export default function ReportAnalytics({ onExportPDF }: ReportAnalyticsProps) {
         {/* Categorías de juego más participadas */}
         <div className="bg-white p-6 rounded-lg shadow-md">
           <BarChart
-            data={metrics.gameCategoryParticipation.map(category => ({
-              name: category.category.length > 15 ? category.category.substring(0, 15) + '...' : category.category,
-              value: category.participation_count,
-              fullName: category.category
-            }))}
+            data={categoriesChartData}
             title="Categorías de Juego Más Participadas"
             xAxisKey="name"
             yAxisKey="value"

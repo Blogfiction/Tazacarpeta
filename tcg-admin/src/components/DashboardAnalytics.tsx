@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { BarChart3, Users, MapPin, TowerControl as GameController, Trophy, Clock } from 'lucide-react';
 import type { Activity, Game, Store, UserActivityStats } from '../types/database';
 import { getTopActiveUsers } from '../services/users';
@@ -20,11 +20,7 @@ export default function DashboardAnalytics({ activities, games, stores }: Dashbo
     location: ''
   });
 
-  useEffect(() => {
-    loadTopUsers();
-  }, []);
-
-  async function loadTopUsers() {
+  const loadTopUsers = useCallback(async () => {
     try {
       const data = await getTopActiveUsers();
       setTopUsers(data);
@@ -33,16 +29,21 @@ export default function DashboardAnalytics({ activities, games, stores }: Dashbo
     } finally {
       setLoadingUsers(false);
     }
-  }
+  }, []);
 
-  const getTimeSlot = (date: Date) => {
+  useEffect(() => {
+    loadTopUsers();
+  }, [loadTopUsers]);
+
+  const getTimeSlot = useCallback((date: Date) => {
     const hour = date.getHours();
     if (hour < 12) return 'morning';
     if (hour < 17) return 'afternoon';
     return 'evening';
-  };
+  }, []);
 
-  const getActivityStats = () => {
+  // Memoizar estadísticas (cálculo costoso con listas grandes)
+  const stats = useMemo(() => {
     const today = new Date();
     let filteredActivities = activities.filter(activity => {
       const activityDate = new Date(activity.date);
@@ -99,29 +100,36 @@ export default function DashboardAnalytics({ activities, games, stores }: Dashbo
         return acc;
       }, {} as Record<string, number>)
     };
-  };
+  }, [activities, dateRange, filters, stores, getTimeSlot]);
 
-  const stats = getActivityStats();
-  const topGames = Object.entries(stats.byGame)
-    .map(([id, count]) => ({
-      game: games.find(g => g.id_game === id),
-      count
-    }))
-    .filter(item => item.game)
-    .sort((a, b) => b.count - a.count)
-    .slice(0, 5);
+  // Memoizar topGames (solo recalcula cuando cambian stats o games)
+  const topGames = useMemo(() => {
+    return Object.entries(stats.byGame)
+      .map(([id, count]) => ({
+        game: games.find(g => g.id_game === id),
+        count
+      }))
+      .filter(item => item.game)
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 5);
+  }, [stats.byGame, games]);
 
-  const topStores = Object.entries(stats.byStore)
-    .map(([id, count]) => ({
-      store: stores.find(s => s.id_store === id),
-      count
-    }))
-    .filter(item => item.store)
-    .sort((a, b) => b.count - a.count)
-    .slice(0, 5);
+  // Memoizar topStores (solo recalcula cuando cambian stats o stores)
+  const topStores = useMemo(() => {
+    return Object.entries(stats.byStore)
+      .map(([id, count]) => ({
+        store: stores.find(s => s.id_store === id),
+        count
+      }))
+      .filter(item => item.store)
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 5);
+  }, [stats.byStore, stores]);
 
-  // Get unique locations from stores
-  const locations = Array.from(new Set(stores.map(store => store.adress))).filter(Boolean);
+  // Memoizar locations (solo recalcula cuando cambian stores)
+  const locations = useMemo(() => {
+    return Array.from(new Set(stores.map(store => store.adress))).filter(Boolean);
+  }, [stores]);
 
   return (
     <div className="retro-container bg-white">

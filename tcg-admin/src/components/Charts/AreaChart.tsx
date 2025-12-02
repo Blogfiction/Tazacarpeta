@@ -1,3 +1,4 @@
+import React from 'react';
 import { AreaChart as RechartsAreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 
 interface AreaChartData {
@@ -21,7 +22,7 @@ interface AreaChartProps {
   showLegend?: boolean;
 }
 
-export default function AreaChart({
+function AreaChart({
   data,
   title,
   xAxisKey = 'period',
@@ -85,3 +86,5 @@ export default function AreaChart({
     </div>
   );
 }
+
+export default React.memo(AreaChart);

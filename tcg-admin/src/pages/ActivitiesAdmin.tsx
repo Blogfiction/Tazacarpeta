@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus, Edit2, Trash2, Calendar, MapPin, Link as LinkIcon, Store, TowerControl as GameController, 
          Filter, ChevronDown, ChevronUp, ChevronRight, Clock, CheckCircle, XCircle, ArrowUp, ArrowDown,
-         ChevronLeft, ChevronRight as ChevronRightIcon } from 'lucide-react';
+         ChevronLeft, ChevronRight as ChevronRightIcon, UserPlus, Eye } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { Activity, ActivityInput, Game, Store as StoreType } from '../types/database';
 import { getActivities, createActivity, updateActivity, deleteActivity } from '../services/activities';
@@ -11,6 +11,9 @@ import { getStores } from '../services/stores';
 import Modal from '../components/Modal';
 import LoadingScreen from '../components/LoadingScreen';
 import PlacesAutocomplete from '../components/PlacesAutocomplete';
+import { supabase } from '../lib/supabaseClient';
+import toast from 'react-hot-toast';
+import ViewInscriptionsModal from '../components/activities/ViewInscriptionsModal';
 
 // Tipos de filtro para las actividades
 type FilterType = 'all' | 'upcoming' | 'past';
@@ -29,6 +32,9 @@ export default function ActivitiesAdmin() {
   const [error, setError] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [currentActivity, setCurrentActivity] = useState<Activity | null>(null);
+  const [inscribingActivityId, setInscribingActivityId] = useState<string | null>(null);
+  const [showViewModal, setShowViewModal] = useState(false);
+  const [selectedActivityForView, setSelectedActivityForView] = useState<Activity | null>(null);
   
   // Estados para filtros y ordenamiento
   const [filterType, setFilterType] = useState<FilterType>('all');
@@ -221,6 +227,45 @@ export default function ActivitiesAdmin() {
     setPastCurrentPage(1);
     setFilteredCurrentPage(1);
   }, [filterType, sortField, sortDirection]);
+
+  // Función para manejar la inscripción directa
+  const handleInscription = async (activityId: string) => {
+    if (!session?.user) return;
+
+    setInscribingActivityId(activityId);
+
+    try {
+      // Insertar la inscripción directamente en la tabla inscriptions
+      // La tabla usa: id_user, id_activity, inscription_date
+      const { error } = await supabase
+        .from('inscriptions')
+        .insert({
+          id_user: session.user.id,
+          id_activity: activityId,
+          inscription_date: new Date().toISOString()
+        });
+    
+
+      if (error) {
+        console.error('Error al guardar inscripción:', error);
+        
+        // Si el error es por duplicado (ya está inscrito)
+        if (error.code === '23505' || error.message.includes('duplicate')) {
+          toast.error('Ya estás inscrito en esta actividad');
+        } else {
+          toast.error('Error al guardar la inscripción. Intenta nuevamente.');
+        }
+        return;
+      }
+
+      toast.success('¡Inscripción realizada exitosamente!');
+    } catch (err) {
+      console.error('Error inesperado:', err);
+      toast.error('Error inesperado al procesar la inscripción');
+    } finally {
+      setInscribingActivityId(null);
+    }
+  };
 
   if (!session) return null;
   
@@ -653,6 +698,18 @@ export default function ActivitiesAdmin() {
             </div>
           </form>
         </Modal>
+
+        {/* Modal para ver inscripciones */}
+        {selectedActivityForView && (
+          <ViewInscriptionsModal
+            activityId={selectedActivityForView.id_activity}
+            isOpen={showViewModal}
+            onClose={() => {
+              setShowViewModal(false);
+              setSelectedActivityForView(null);
+            }}
+          />
+        )}
       </div>
     </div>
   );
@@ -743,6 +800,33 @@ export default function ActivitiesAdmin() {
               </a>
             </div>
           )}
+
+          {/* Botones de inscripción y ver inscritos */}
+          <div className="mt-4 pt-4 border-t-2 border-gray-200">
+            {/* Botón de inscripción - visible solo si el evento no ha pasado y el usuario está autenticado */}
+            {!isPast && session?.user && (
+              <button
+                onClick={() => handleInscription(activity.id_activity)}
+                disabled={inscribingActivityId === activity.id_activity}
+                className="retro-button text-xs flex items-center justify-center w-full disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <UserPlus className="w-4 h-4 mr-2" />
+                {inscribingActivityId === activity.id_activity ? 'Inscribiendo...' : 'Inscribirse'}
+              </button>
+            )}
+            
+            {/* Botón para ver inscritos - siempre visible */}
+            <button
+              className={`retro-button text-xs flex items-center justify-center w-full ${!isPast && session?.user ? 'mt-2' : ''}`}
+              onClick={() => {
+                setSelectedActivityForView(activity);
+                setShowViewModal(true);
+              }}
+            >
+              <Eye className="w-4 h-4 mr-2" />
+              Ver inscritos
+            </button>
+          </div>
           
           <div className="event-actions">
             <button

@@ -1,3 +1,4 @@
+import React from 'react';
 import { BarChart as RechartsBarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 
 interface BarChartData {
@@ -18,7 +19,7 @@ interface BarChartProps {
 
 const COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#06B6D4', '#84CC16', '#F97316'];
 
-export default function BarChart({
+function BarChart({
   data,
   title,
   xAxisKey = 'name',
@@ -73,3 +74,5 @@ export default function BarChart({
     </div>
   );
 }
+
+export default React.memo(BarChart);

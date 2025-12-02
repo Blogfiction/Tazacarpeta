@@ -1,12 +1,15 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Calendar, MapPin, Link as LinkIcon, ArrowLeft, Store, TowerControl as GameController } from 'lucide-react';
+import { Calendar, MapPin, Link as LinkIcon, ArrowLeft, Store, TowerControl as GameController, UserPlus, Eye } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { Activity, Game, Store as StoreType } from '../types/database';
 import { getActivity } from '../services/activities';
 import { getGames } from '../services/games';
 import { getStores } from '../services/stores';
 import LoadingScreen from '../components/LoadingScreen';
+import { supabase } from '../lib/supabaseClient';
+import toast from 'react-hot-toast';
+import ViewInscriptionsModal from '../components/activities/ViewInscriptionsModal';
 
 export default function ActivityDetail() {
   const { id } = useParams<{ id: string }>();
@@ -17,6 +20,8 @@ export default function ActivityDetail() {
   const [store, setStore] = useState<StoreType | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [isSubmittingInscription, setIsSubmittingInscription] = useState(false);
+  const [showViewModal, setShowViewModal] = useState(false);
 
   useEffect(() => {
     if (!session) {
@@ -72,6 +77,43 @@ export default function ActivityDetail() {
       hour: '2-digit',
       minute: '2-digit'
     }).format(date);
+  };
+
+  const handleInscription = async () => {
+    if (!activity || !session?.user) return;
+
+    setIsSubmittingInscription(true);
+
+    try {
+      // Insertar la inscripción directamente en la tabla inscriptions
+      // La tabla usa: id_user, id_activity, inscription_date
+      const { error } = await supabase
+        .from('inscriptions')
+        .insert({
+          id_user: session.user.id,
+          id_activity: activity.id_activity,
+          inscription_date: new Date().toISOString()
+        });
+
+      if (error) {
+        console.error('Error al guardar inscripción:', error);
+        
+        // Si el error es por duplicado (ya está inscrito)
+        if (error.code === '23505' || error.message.includes('duplicate')) {
+          toast.error('Ya estás inscrito en esta actividad');
+        } else {
+          toast.error('Error al guardar la inscripción. Intenta nuevamente.');
+        }
+        return;
+      }
+
+      toast.success('¡Inscripción realizada exitosamente!');
+    } catch (err) {
+      console.error('Error inesperado:', err);
+      toast.error('Error inesperado al procesar la inscripción');
+    } finally {
+      setIsSubmittingInscription(false);
+    }
   };
 
   if (!session) return null;
@@ -172,6 +214,32 @@ export default function ActivityDetail() {
                   </a>
                 </div>
               )}
+
+              {/* Botones de inscripción y ver inscritos */}
+              {activity && (
+                <div className="mt-4 pt-4 border-t-2 border-gray-200">
+                  {/* Botón de inscripción - visible solo si el evento no ha pasado y el usuario está autenticado */}
+                  {!isPast && session?.user && (
+                    <button
+                      onClick={handleInscription}
+                      disabled={isSubmittingInscription}
+                      className="retro-button text-xs flex items-center justify-center w-full disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <UserPlus className="w-4 h-4 mr-2" />
+                      {isSubmittingInscription ? 'Inscribiendo...' : 'Inscribirse'}
+                    </button>
+                  )}
+                  
+                  {/* Botón para ver inscritos - siempre visible */}
+                  <button
+                    className={`retro-button text-xs flex items-center justify-center w-full ${!isPast && session?.user ? 'mt-2' : ''}`}
+                    onClick={() => setShowViewModal(true)}
+                  >
+                    <Eye className="w-4 h-4 mr-2" />
+                    Ver inscritos
+                  </button>
+                </div>
+              )}
             </div>
             
             <div className="flex justify-between mt-6 pt-4 border-t-2 border-gray-200">
@@ -195,6 +263,15 @@ export default function ActivityDetail() {
               Actividad no encontrada
             </p>
           </div>
+        )}
+
+        {/* Modal para ver inscripciones */}
+        {activity && (
+          <ViewInscriptionsModal
+            activityId={activity.id_activity}
+            isOpen={showViewModal}
+            onClose={() => setShowViewModal(false)}
+          />
         )}
       </div>
     </div>

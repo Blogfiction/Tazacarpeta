@@ -1,3 +1,4 @@
+import React from 'react';
 import { PieChart as RechartsPieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts';
 
 interface PieChartData {
@@ -20,7 +21,7 @@ interface PieChartProps {
 
 const COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#06B6D4', '#84CC16', '#F97316'];
 
-export default function PieChart({
+function PieChart({
   data,
   title,
   nameKey = 'name',
@@ -72,3 +73,5 @@ export default function PieChart({
     </div>
   );
 }
+
+export default React.memo(PieChart);
