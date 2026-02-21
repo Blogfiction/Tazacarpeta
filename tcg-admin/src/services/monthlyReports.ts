@@ -49,6 +49,15 @@ export interface SavedReport {
   data: MonthlyReportData;
 }
 
+/** Constantes de diseño para PDF mensual (márgenes y espaciado uniforme) */
+const PDF_MONTHLY_LAYOUT = {
+  margin: 20,
+  footerOffset: 15,
+  pageBottomLimit: 260,
+  spacingAfterTable: 15,
+  titleTop: 30,
+} as const;
+
 /**
  * Servicio para generar reportes mensuales
  */
@@ -645,44 +654,39 @@ class MonthlyReportService {
    * Añade las tablas detalladas (SOLO TABLAS, SIN GRÁFICOS)
    */
   private addDetailedTables(doc: jsPDF, data: MonthlyReportData): void {
-    // Página 1: Tiendas y Juegos
+    const L = PDF_MONTHLY_LAYOUT;
     doc.addPage();
     this.addCompanyLogo(doc);
-    
-    // Título principal
+
     doc.setFontSize(18);
     doc.setTextColor(31, 41, 55);
     doc.setFont('helvetica', 'bold');
-    doc.text('TABLAS DETALLADAS', 20, 40);
-    
-    // Ranking de Tiendas - Optimizado
+    doc.text('TABLAS DETALLADAS', L.margin, 40);
+
     doc.setFontSize(14);
     doc.setTextColor(59, 130, 246);
     doc.setFont('helvetica', 'bold');
-    doc.text('RANKING DE TIENDAS MÁS VISITADAS', 20, 60);
-    
-    // Debug: Verificar datos de tiendas
-    console.log('Datos de tiendas:', data.topStores);
-    
+    doc.text('RANKING DE TIENDAS MÁS VISITADAS', L.margin, 60);
+
     const allStoresData = data.topStores.map((store, index) => [
       (index + 1).toString(),
       store.name_store || 'Sin nombre',
-      store.visits?.toString() || '0', // Cambiar de total_visits a visits
-      store.unique_users?.toString() || '0' // Cambiar de unique_visitors a unique_users
+      store.visits?.toString() || '0',
+      store.unique_users?.toString() || '0'
     ]);
-    
-    autoTable(doc, {
+
+    const storesTableResult = autoTable(doc, {
       head: [['#', 'Tienda', 'Visitas', 'Usuarios Únicos']],
       body: allStoresData,
       startY: 70,
       theme: 'grid',
-      headStyles: { 
+      headStyles: {
         fillColor: [59, 130, 246],
         textColor: [255, 255, 255],
         fontSize: 10,
         fontStyle: 'bold'
       },
-      styles: { 
+      styles: {
         fontSize: 9,
         cellPadding: 3,
         lineColor: [200, 200, 200],
@@ -694,35 +698,43 @@ class MonthlyReportService {
         2: { halign: 'center', cellWidth: 30 },
         3: { halign: 'center', cellWidth: 30 }
       },
-      margin: { left: 20, right: 20 },
-      tableWidth: 170
+      margin: { left: L.margin, right: L.margin },
+      tableWidth: 170,
+      pageBreak: 'auto'
     });
-    
-    // Ranking de Juegos - Optimizado
+
+    let nextY = storesTableResult.finalY + L.spacingAfterTable;
+    if (nextY > L.pageBottomLimit) {
+      doc.addPage();
+      this.addCompanyLogo(doc);
+      nextY = L.titleTop + 10;
+    }
+
     doc.setFontSize(14);
     doc.setTextColor(16, 185, 129);
     doc.setFont('helvetica', 'bold');
-    doc.text('RANKING DE JUEGOS MÁS CLICKEADOS', 20, 140);
-    
+    doc.text('RANKING DE JUEGOS MÁS CLICKEADOS', L.margin, nextY);
+    nextY += 10;
+
     const allGamesData = data.topGames.map((game, index) => [
       (index + 1).toString(),
       game.name || 'Sin nombre',
       game.clicks?.toString() || '0',
       game.category || 'Sin categoría'
     ]);
-    
+
     autoTable(doc, {
       head: [['#', 'Juego', 'Clics', 'Categoría']],
       body: allGamesData,
-      startY: 150,
+      startY: nextY,
       theme: 'grid',
-      headStyles: { 
+      headStyles: {
         fillColor: [16, 185, 129],
         textColor: [255, 255, 255],
         fontSize: 10,
         fontStyle: 'bold'
       },
-      styles: { 
+      styles: {
         fontSize: 9,
         cellPadding: 3,
         lineColor: [200, 200, 200],
@@ -734,19 +746,19 @@ class MonthlyReportService {
         2: { halign: 'center', cellWidth: 30 },
         3: { cellWidth: 40, halign: 'left' }
       },
-      margin: { left: 20, right: 20 },
-      tableWidth: 170
+      margin: { left: L.margin, right: L.margin },
+      tableWidth: 170,
+      pageBreak: 'auto'
     });
-    
-    // Página 2: Actividades
+
     doc.addPage();
     this.addCompanyLogo(doc);
-    
+
     doc.setFontSize(14);
     doc.setTextColor(139, 92, 246);
     doc.setFont('helvetica', 'bold');
-    doc.text('RANKING DE ACTIVIDADES MÁS CONCURRIDAS', 20, 40);
-    
+    doc.text('RANKING DE ACTIVIDADES MÁS CONCURRIDAS', L.margin, 40);
+
     const allActivitiesData = data.topActivities.map((activity, index) => [
       (index + 1).toString(),
       activity.name_activity || 'Sin nombre',
@@ -779,18 +791,18 @@ class MonthlyReportService {
         3: { cellWidth: 40, halign: 'left' },
         4: { halign: 'center', cellWidth: 25 }
       },
-      margin: { left: 20, right: 20 },
-      tableWidth: 170
+      margin: { left: L.margin, right: L.margin },
+      tableWidth: 170,
+      pageBreak: 'auto'
     });
-    
-    // Página 3: Categorías
+
     doc.addPage();
     this.addCompanyLogo(doc);
-    
+
     doc.setFontSize(14);
     doc.setTextColor(245, 158, 11);
     doc.setFont('helvetica', 'bold');
-    doc.text('RANKING DE CATEGORÍAS MÁS PARTICIPADAS', 20, 40);
+    doc.text('RANKING DE CATEGORÍAS MÁS PARTICIPADAS', L.margin, 40);
     
     const allCategoriesData = data.gameCategoryParticipation.map((category, index) => [
       (index + 1).toString(),
@@ -822,8 +834,9 @@ class MonthlyReportService {
         2: { halign: 'center', cellWidth: 30 },
         3: { halign: 'center', cellWidth: 30 }
       },
-      margin: { left: 20, right: 20 },
-      tableWidth: 170
+      margin: { left: L.margin, right: L.margin },
+      tableWidth: 170,
+      pageBreak: 'auto'
     });
   }
 
@@ -831,60 +844,66 @@ class MonthlyReportService {
    * Añade el análisis de tendencias
    */
   private addTrendsAnalysis(doc: jsPDF, data: MonthlyReportData): void {
+    const L = PDF_MONTHLY_LAYOUT;
     doc.addPage();
-    
-    // Logo de la empresa
     this.addCompanyLogo(doc);
-    
-    // Título
+
     doc.setFontSize(16);
-    doc.text('ANÁLISIS DE TENDENCIAS', 20, 50);
-    
-    // Análisis de crecimiento
+    doc.text('ANÁLISIS DE TENDENCIAS', L.margin, 50);
+
     const analysis = this.generateTrendAnalysis(data);
-    
-    let y = 70; // Empezar directamente sin el título "Tendencias del período:"
+    const maxWidth = doc.internal.pageSize.width - (L.margin * 2);
+    let y = 70;
+
     analysis.forEach(line => {
-      // Dividir el texto en líneas que caben en el ancho de la página
-      const maxWidth = doc.internal.pageSize.width - 60; // 30px margen izquierdo + 30px margen derecho
+      if (y > L.pageBottomLimit) {
+        doc.addPage();
+        this.addCompanyLogo(doc);
+        y = L.titleTop + 20;
+      }
       const lines = doc.splitTextToSize(`• ${line}`, maxWidth);
-      
       lines.forEach((lineText: string) => {
-        doc.text(lineText, 30, y);
-        y += 10; // Espaciado normal entre líneas
+        doc.text(lineText, L.margin + 10, y);
+        y += 10;
       });
-      y += 8; // Espacio entre párrafos
+      y += 8;
     });
-    
-    // Recomendaciones
+
+    if (y > L.pageBottomLimit) {
+      doc.addPage();
+      this.addCompanyLogo(doc);
+      y = L.titleTop + 20;
+    }
     doc.setFontSize(14);
-    doc.text('RECOMENDACIONES', 20, y + 20);
-    
+    doc.text('RECOMENDACIONES', L.margin, y + 15);
+    y += 35;
+
     const recommendations = this.generateRecommendations(data);
-    
-    y += 40;
     recommendations.forEach(rec => {
-      // Dividir el texto en líneas que caben en el ancho de la página
-      const maxWidth = doc.internal.pageSize.width - 60; // 30px margen izquierdo + 30px margen derecho
+      if (y > L.pageBottomLimit) {
+        doc.addPage();
+        this.addCompanyLogo(doc);
+        y = L.titleTop + 20;
+      }
       const lines = doc.splitTextToSize(`• ${rec}`, maxWidth);
-      
       lines.forEach((line: string) => {
-        doc.text(line, 30, y);
-        y += 10; // Espaciado normal entre líneas
+        doc.text(line, L.margin + 10, y);
+        y += 10;
       });
-      y += 8; // Espacio entre recomendaciones
+      y += 8;
     });
   }
 
   /**
-   * Añade el pie de página
+   * Añade el pie de página en todas las páginas
    */
   private addFooter(doc: jsPDF): void {
     const pageCount = (doc as any).internal.getNumberOfPages();
+    const pageHeight = doc.internal.pageSize.height;
     for (let i = 1; i <= pageCount; i++) {
       doc.setPage(i);
       doc.setFontSize(8);
-      doc.text(`Página ${i} de ${pageCount} - TCG Admin`, 14, doc.internal.pageSize.height - 10);
+      doc.text(`Página ${i} de ${pageCount} - TCG Admin`, PDF_MONTHLY_LAYOUT.margin, pageHeight - PDF_MONTHLY_LAYOUT.footerOffset);
     }
   }
 
