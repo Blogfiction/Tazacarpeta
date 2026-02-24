@@ -68,6 +68,13 @@ interface DashboardData {
  * Servicio para generar reportes en PDF
  */
 class ReportService {
+  /** Constantes de layout para PDF ordenados (márgenes y zonas) */
+  private readonly MARGIN = 20;
+  private readonly PAGE_WIDTH = 210;
+  private readonly PAGE_HEIGHT = 297;
+  private readonly HEADER_START_Y = 45;
+  private readonly FOOTER_Y = 285; // PAGE_HEIGHT - 12
+
   /**
    * FAKE DATA HELPERS
    */
@@ -165,22 +172,22 @@ class ReportService {
         creator: 'TCG Admin System'
       });
       
-      // Añadir cabecera
+      // Añadir cabecera (usando constantes de layout)
       doc.setFontSize(18);
-      doc.text(title, 14, 20);
+      doc.text(title, this.MARGIN, 22);
       
       doc.setFontSize(10);
-      doc.text(`Generado el: ${formattedDate}`, 14, 30);
+      doc.text(`Generado el: ${formattedDate}`, this.MARGIN, 32);
       
       // Añadir contenido según el tipo de reporte
       await this.addReportContent(doc, options, data);
       
-      // Añadir pie de página
+      // Añadir pie de página en todas las hojas
       const pageCount = (doc as any).internal.getNumberOfPages();
       for (let i = 1; i <= pageCount; i++) {
         doc.setPage(i);
         doc.setFontSize(8);
-        doc.text(`Página ${i} de ${pageCount} - TCG Admin`, 14, doc.internal.pageSize.height - 10);
+        doc.text(`Página ${i} de ${pageCount} - TCG Admin`, this.MARGIN, this.FOOTER_Y);
       }
       
       // Exportar como blob
@@ -485,13 +492,12 @@ class ReportService {
     } catch (error) {
       console.error(`Error al añadir contenido al reporte ${options.type}:`, error);
       console.error('Datos recibidos:', data);
-      // Añadir mensaje de error al documento
       doc.setFontSize(12);
       doc.setTextColor(255, 0, 0);
-      doc.text(`Error al generar el contenido del reporte ${options.type}.`, 14, 100);
-      doc.text('Detalles del error:', 14, 110);
+      doc.text(`Error al generar el contenido del reporte ${options.type}.`, this.MARGIN, 100);
+      doc.text('Detalles del error:', this.MARGIN, 110);
       doc.setFontSize(10);
-      doc.text(error instanceof Error ? error.message : 'Error desconocido', 14, 120);
+      doc.text(error instanceof Error ? error.message : 'Error desconocido', this.MARGIN, 120);
       doc.setTextColor(0, 0, 0);
     }
   }
@@ -500,9 +506,10 @@ class ReportService {
    * Añade contenido de actividades al PDF
    */
   private addActivitiesContent(doc: jsPDF, activities: Activity[]): void {
+    const y = this.HEADER_START_Y;
     if (!activities || activities.length === 0) {
       doc.setFontSize(12);
-      doc.text('No hay actividades para mostrar con los filtros seleccionados.', 14, 40);
+      doc.text('No hay actividades para mostrar con los filtros seleccionados.', this.MARGIN, y);
       return;
     }
     
@@ -522,26 +529,27 @@ class ReportService {
     
     // Añadir estadísticas
     doc.setFontSize(12);
-    doc.text('Resumen de Actividades', 14, 40);
+    doc.text('Resumen de Actividades', this.MARGIN, y);
     doc.setFontSize(10);
-    doc.text(`Total de actividades: ${activities.length}`, 14, 48);
+    doc.text(`Total de actividades: ${activities.length}`, this.MARGIN, y + 8);
     
     const now = new Date();
     const upcomingActivities = activities.filter(a => new Date(a.date) > now);
     const pastActivities = activities.filter(a => new Date(a.date) <= now);
     
-    doc.text(`Actividades futuras: ${upcomingActivities.length}`, 14, 54);
-    doc.text(`Actividades pasadas: ${pastActivities.length}`, 14, 60);
+    doc.text(`Actividades futuras: ${upcomingActivities.length}`, this.MARGIN, y + 14);
+    doc.text(`Actividades pasadas: ${pastActivities.length}`, this.MARGIN, y + 20);
     
-    // Añadir tabla
+    const tableStartY = y + 28;
     (doc as any).autoTable({
       head: [tableColumn],
       body: tableRows,
-      startY: 70,
+      startY: tableStartY,
+      margin: { left: this.MARGIN, right: this.MARGIN },
       theme: 'grid',
       styles: {
         fontSize: 8,
-        cellPadding: 3,
+        cellPadding: 4,
         valign: 'middle',
         overflow: 'linebreak',
         cellWidth: 'auto'
@@ -568,67 +576,63 @@ class ReportService {
    * Añade contenido de tiendas al PDF
    */
   private addStoresContent(doc: jsPDF, stores: Store[]): void {
+    const startY = this.HEADER_START_Y;
     if (!stores || stores.length === 0) {
       doc.setFontSize(12);
-      doc.text('No hay tiendas para mostrar con los filtros seleccionados.', 14, 40);
+      doc.text('No hay tiendas para mostrar con los filtros seleccionados.', this.MARGIN, startY);
       return;
     }
     
-    // Añadir estadísticas
     doc.setFontSize(12);
-    doc.text('Resumen de Tiendas', 14, 40);
+    doc.text('Resumen de Tiendas', this.MARGIN, startY);
     doc.setFontSize(10);
-    doc.text(`Total de tiendas: ${stores.length}`, 14, 48);
+    doc.text(`Total de tiendas: ${stores.length}`, this.MARGIN, startY + 8);
     
-    // Agrupar por región
     const storesByRegion: Record<string, number> = {};
     stores.forEach(store => {
-      const region = 'Región General'; // Placeholder since region is not in Store interface
+      const region = 'Región General';
       if (!storesByRegion[region]) {
         storesByRegion[region] = 0;
       }
       storesByRegion[region]++;
     });
     
-    let y = 54;
-    doc.text('Tiendas por región:', 14, y);
+    let y = startY + 14;
+    doc.text('Tiendas por región:', this.MARGIN, y);
     y += 6;
     
     Object.entries(storesByRegion).forEach(([region, count], index) => {
-      doc.text(`- ${region}: ${count}`, 20, y + (index * 6));
+      doc.text(`- ${region}: ${count}`, this.MARGIN + 6, y + (index * 6));
     });
     
-    y += (Object.keys(storesByRegion).length * 6) + 6;
+    y += (Object.keys(storesByRegion).length * 6) + 12;
     
-    // Añadir tabla de tiendas
     const tableColumn = ['Nombre', 'Dirección', 'Teléfono', 'Email'];
-    const tableRows = stores.map(store => {
-      return [
-        store.name_store,
-        store.adress,
-        store.phone || 'N/A',
-        store.email || 'N/A'
-      ];
-    });
+    const tableRows = stores.map(store => [
+      store.name_store,
+      String(store.adress ?? 'N/A'),
+      store.phone != null ? String(store.phone) : 'N/A',
+      store.email || 'N/A'
+    ]);
     
-    // Añadir tabla
     (doc as any).autoTable({
       head: [tableColumn],
       body: tableRows,
       startY: y,
+      margin: { left: this.MARGIN, right: this.MARGIN },
       theme: 'grid',
       styles: {
         fontSize: 8,
-        cellPadding: 3,
+        cellPadding: 4,
         valign: 'middle',
         overflow: 'linebreak',
         cellWidth: 'auto'
       },
       columnStyles: {
-        0: { cellWidth: 40 }, // Nombre
-        1: { cellWidth: 60 }, // Dirección
-        2: { cellWidth: 40 }, // Ciudad
-        3: { cellWidth: 30 }  // Plan
+        0: { cellWidth: 35 }, // Nombre
+        1: { cellWidth: 65 }, // Dirección
+        2: { cellWidth: 35 }, // Teléfono
+        3: { cellWidth: 45 }  // Email
       },
       headStyles: {
         fillColor: [80, 80, 80],
@@ -645,19 +649,18 @@ class ReportService {
    * Añade contenido de juegos al PDF
    */
   private addGamesContent(doc: jsPDF, games: Game[]): void {
+    const startY = this.HEADER_START_Y;
     if (!games || games.length === 0) {
       doc.setFontSize(12);
-      doc.text('No hay juegos para mostrar con los filtros seleccionados.', 14, 40);
+      doc.text('No hay juegos para mostrar con los filtros seleccionados.', this.MARGIN, startY);
       return;
     }
     
-    // Añadir estadísticas
     doc.setFontSize(12);
-    doc.text('Resumen de Juegos', 14, 40);
+    doc.text('Resumen de Juegos', this.MARGIN, startY);
     doc.setFontSize(10);
-    doc.text(`Total de juegos: ${games.length}`, 14, 48);
+    doc.text(`Total de juegos: ${games.length}`, this.MARGIN, startY + 8);
     
-    // Agrupar por categoría
     const gamesByCategory: Record<string, number> = {};
     games.forEach(game => {
       const category = game.category || 'Sin categoría';
@@ -667,43 +670,40 @@ class ReportService {
       gamesByCategory[category]++;
     });
     
-    let y = 54;
-    doc.text('Juegos por categoría:', 14, y);
+    let y = startY + 14;
+    doc.text('Juegos por categoría:', this.MARGIN, y);
     y += 6;
     
     Object.entries(gamesByCategory).forEach(([category, count], index) => {
-      doc.text(`- ${category}: ${count}`, 20, y + (index * 6));
+      doc.text(`- ${category}: ${count}`, this.MARGIN + 6, y + (index * 6));
     });
     
-    y += (Object.keys(gamesByCategory).length * 6) + 6;
+    y += (Object.keys(gamesByCategory).length * 6) + 12;
     
-    // Añadir tabla de juegos
     const tableColumn = ['Nombre', 'Descripción', 'Categoría'];
-    const tableRows = games.map(game => {
-      return [
-        game.name,
-        game.description?.substring(0, 80) + (game.description && game.description.length > 80 ? '...' : '') || 'N/A',
-        game.category || 'Sin categoría'
-      ];
-    });
+    const tableRows = games.map(game => [
+      game.name,
+      game.description?.substring(0, 80) + (game.description && game.description.length > 80 ? '...' : '') || 'N/A',
+      game.category || 'Sin categoría'
+    ]);
     
-    // Añadir tabla
     (doc as any).autoTable({
       head: [tableColumn],
       body: tableRows,
       startY: y,
+      margin: { left: this.MARGIN, right: this.MARGIN },
       theme: 'grid',
       styles: {
         fontSize: 8,
-        cellPadding: 3,
+        cellPadding: 4,
         valign: 'middle',
         overflow: 'linebreak',
         cellWidth: 'auto'
       },
       columnStyles: {
-        0: { cellWidth: 40 }, // Nombre
+        0: { cellWidth: 40 },  // Nombre
         1: { cellWidth: 110 }, // Descripción
-        2: { cellWidth: 30 }  // Categoría
+        2: { cellWidth: 30 }   // Categoría
       },
       headStyles: {
         fillColor: [80, 80, 80],
@@ -720,17 +720,21 @@ class ReportService {
    * Añade contenido de dashboard al PDF
    */
   private addDashboardContent(doc: jsPDF, data: DashboardData): void {
+    const m = this.MARGIN;
+    const startY = this.HEADER_START_Y;
+    const chartStartY = startY + 65;
+    const barHeight = 100;
+    const minYForNewPage = this.PAGE_HEIGHT - 100;
+
     try {
       const { metrics } = data;
-      
-      // Añadir resumen ejecutivo
+
       doc.setFontSize(12);
-      doc.text('Resumen Ejecutivo', 14, 40);
-      
+      doc.text('Resumen Ejecutivo', m, startY);
+
       doc.setFontSize(10);
-      doc.text('Métricas Generales:', 14, 50);
-      
-      // Crear una tabla de métricas
+      doc.text('Métricas Generales:', m, startY + 10);
+
       const metricsTable = [
         ['Total de Actividades', metrics.totalActivities.toString()],
         ['Actividades Futuras', metrics.upcomingActivities.toString()],
@@ -738,26 +742,24 @@ class ReportService {
         ['Total de Tiendas', metrics.totalStores.toString()],
         ['Total de Juegos', metrics.totalGames.toString()]
       ];
-      
-      // Añadir tabla de métricas
+
       (doc as any).autoTable({
         body: metricsTable,
-        startY: 55,
+        startY: startY + 18,
+        margin: { left: m, right: m },
         theme: 'plain',
         styles: {
           fontSize: 10,
           cellPadding: 4
         }
       });
-      
-      let y = 110;
-      
-      // Verificar si hay datos para el gráfico
+
+      let y = chartStartY;
+
       if (Object.keys(metrics.activitiesByMonth || {}).length > 0) {
-        // Actividades por mes
         doc.setFontSize(12);
-        doc.text('Tendencia de Actividades por Mes', 14, y);
-        
+        doc.text('Tendencia de Actividades por Mes', m, y);
+
         const monthsData = Object.entries(metrics.activitiesByMonth || {}).sort();
         const monthLabels = monthsData.map(([month]) => {
           try {
@@ -767,127 +769,111 @@ class ReportService {
             return month;
           }
         });
-        
+
         const activityCounts = monthsData.map(([_, count]) => Number(count) || 0);
-        
-        // Si hay datos, dibujar gráfico
+
         if (activityCounts.length > 0 && Math.max(...activityCounts) > 0) {
-          // Crear gráfico simple de barras
-          let barX = 20;
+          let barX = m;
           const barWidth = 15;
           const maxCount = Math.max(...activityCounts);
-          const barHeight = 100; // altura máxima
-          
+          const barBaseY = y + 25;
+
           doc.setFontSize(8);
           for (let i = 0; i < monthsData.length; i++) {
             const count = activityCounts[i];
-            // Asegurar que la altura de la barra sea al menos 1 si hay al menos una actividad
             const height = count > 0 ? Math.max((count / maxCount) * barHeight, 1) : 0;
-            
-            // Dibujar barra
+
             doc.setFillColor(80, 80, 80);
-            doc.rect(barX, 120 + (barHeight - height), barWidth, height, 'F');
-            
-            // Añadir etiqueta
-            doc.text(monthLabels[i], barX + barWidth/2 - 4, 125 + barHeight);
-            
-            // Añadir valor
-            doc.text(count.toString(), barX + barWidth/2 - 2, 115 + (barHeight - height));
-            
+            doc.rect(barX, barBaseY + (barHeight - height), barWidth, height, 'F');
+
+            doc.text(monthLabels[i], barX + barWidth / 2 - 4, barBaseY + barHeight + 5);
+            doc.text(count.toString(), barX + barWidth / 2 - 2, barBaseY + (barHeight - height) - 2);
+
             barX += barWidth + 10;
           }
-          
-          // Añadir leyenda
+
           doc.setFontSize(8);
-          doc.text('* El gráfico muestra la distribución de actividades por mes', 14, 240);
-          
-          y = 250;
+          doc.text('* El gráfico muestra la distribución de actividades por mes', m, barBaseY + barHeight + 18);
+
+          y = barBaseY + barHeight + 28;
         } else {
           doc.setFontSize(10);
-          doc.text('No hay suficientes datos para mostrar el gráfico.', 14, y + 20);
+          doc.text('No hay suficientes datos para mostrar el gráfico.', m, y + 20);
           y += 30;
         }
       } else {
         doc.setFontSize(10);
-        doc.text('No hay datos suficientes para mostrar la tendencia de actividades.', 14, y + 10);
+        doc.text('No hay datos suficientes para mostrar la tendencia de actividades.', m, y + 10);
         y += 20;
       }
-      
-      // Verificar si hay datos para el gráfico de tiendas por plan
+
       if (metrics.storesByRegion && Object.keys(metrics.storesByRegion).length > 0) {
-        // Si estamos muy abajo en la página, añadir una nueva
-        if (y > 200) {
+        if (y > minYForNewPage) {
           doc.addPage();
-          y = 20;
+          y = this.MARGIN + 5;
         }
-        
+
         doc.setFontSize(12);
-        doc.text('Distribución de Tiendas por Plan', 14, y);
+        doc.text('Distribución de Tiendas por Plan', m, y);
         y += 20;
-        
+
         try {
-          // Crear un gráfico de pastel simple
           const regions = Object.keys(metrics.storesByRegion);
           const storesCounts = regions.map(region => metrics.storesByRegion![region] || 0);
           const total = storesCounts.reduce((sum, count) => sum + count, 0);
-          
+
           if (total > 0) {
             let startAngle = 0;
-            const centerX = 105;
-            const centerY = y + 30;
+            const centerX = this.PAGE_WIDTH / 2;
+            const centerY = y + 35;
             const radius = 40;
             const colors = [[41, 128, 185], [39, 174, 96], [192, 57, 43], [142, 68, 173]];
-            
-            // Leyenda
+
             doc.setFontSize(10);
-            doc.text('Leyenda:', 14, y);
-            
+            doc.text('Leyenda:', m, y);
+
             regions.forEach((region, index) => {
               const count = metrics.storesByRegion![region] || 0;
               const percentage = (count / total) * 100;
               const angle = (percentage / 100) * 2 * Math.PI;
               const endAngle = startAngle + angle;
-              
-              // Corregir el spread operator para colores
+
               const color = colors[index % colors.length];
               doc.setFillColor(color[0], color[1], color[2]);
-              
+
               try {
                 this.drawSector(doc, centerX, centerY, radius, startAngle, endAngle);
               } catch (e) {
                 console.error('Error al dibujar sector:', e);
               }
-              
-              // Añadir a leyenda
+
               doc.setFillColor(color[0], color[1], color[2]);
-              doc.rect(14, y + 5 + (index * 10), 5, 5, 'F');
-              doc.text(`${region}: ${count} (${percentage.toFixed(1)}%)`, 24, y + 10 + (index * 10));
-              
+              doc.rect(m, y + 5 + (index * 10), 5, 5, 'F');
+              doc.text(`${region}: ${count} (${percentage.toFixed(1)}%)`, m + 10, y + 10 + (index * 10));
+
               startAngle = endAngle;
             });
           } else {
             doc.setFontSize(10);
-            doc.text('No hay datos suficientes para mostrar la distribución de tiendas.', 14, y + 10);
+            doc.text('No hay datos suficientes para mostrar la distribución de tiendas.', m, y + 10);
           }
         } catch (e) {
           console.error('Error al generar gráfico de tiendas:', e);
           doc.setFontSize(10);
-          doc.text('No se pudo generar el gráfico de distribución de tiendas.', 14, y + 10);
+          doc.text('No se pudo generar el gráfico de distribución de tiendas.', m, y + 10);
         }
       }
     } catch (error) {
       console.error('Error al generar dashboard:', error);
       doc.setFontSize(12);
-      doc.text('Resumen Ejecutivo', 14, 40);
+      doc.text('Resumen Ejecutivo', m, startY);
       doc.setFontSize(10);
-      doc.text('No se pudieron cargar todos los datos para el dashboard.', 14, 50);
-      
-      // Agregar información básica al menos
-      doc.setFontSize(10);
-      doc.text('Recomendaciones:', 14, 70);
-      doc.text('- Verifica que existan actividades en el sistema', 14, 80);
-      doc.text('- Intenta generar reportes específicos (Actividades, Tiendas, Juegos)', 14, 90);
-      doc.text('- Si el problema persiste, contacta al administrador', 14, 100);
+      doc.text('No se pudieron cargar todos los datos para el dashboard.', m, startY + 10);
+
+      doc.text('Recomendaciones:', m, startY + 30);
+      doc.text('- Verifica que existan actividades en el sistema', m, startY + 40);
+      doc.text('- Intenta generar reportes específicos (Actividades, Tiendas, Juegos)', m, startY + 50);
+      doc.text('- Si el problema persiste, contacta al administrador', m, startY + 60);
     }
   }
   
@@ -1052,18 +1038,17 @@ class ReportService {
    * Añade contenido de historial al PDF
    */
   private addHistoryContent(doc: jsPDF, history: any[]): void {
+    const y = this.HEADER_START_Y;
     if (history.length === 0) {
       doc.setFontSize(12);
-      doc.text('No hay datos de historial disponibles.', 14, 50);
+      doc.text('No hay datos de historial disponibles.', this.MARGIN, y);
       return;
     }
 
-    // Título de sección
     doc.setFontSize(14);
     doc.setFont('helvetica', 'bold');
-    doc.text('Historial de Actividades', 14, 50);
+    doc.text('Historial de Actividades', this.MARGIN, y);
 
-    // Preparar datos para la tabla
     const tableData = history.map((item, index) => [
       index + 1,
       item.stores?.name_store || 'N/A',
@@ -1073,14 +1058,19 @@ class ReportService {
       this.formatDateString(new Date(item.created_at), 'dd/MM/yyyy HH:mm')
     ]);
 
-    // Crear tabla
     (doc as any).autoTable({
       head: [['#', 'Tienda', 'Actividad', 'Tipo', 'Usuario', 'Fecha']],
       body: tableData,
-      startY: 60,
-      styles: { fontSize: 8 },
-      headStyles: { fillColor: [59, 130, 246] },
-      alternateRowStyles: { fillColor: [249, 250, 251] }
+      startY: y + 15,
+      margin: { left: this.MARGIN, right: this.MARGIN },
+      theme: 'grid',
+      styles: { fontSize: 8, cellPadding: 4 },
+      headStyles: {
+        fillColor: [80, 80, 80],
+        textColor: [255, 255, 255],
+        fontStyle: 'bold'
+      },
+      alternateRowStyles: { fillColor: [240, 240, 240] }
     });
   }
 
@@ -1088,18 +1078,17 @@ class ReportService {
    * Añade contenido de búsquedas al PDF
    */
   private addSearchesContent(doc: jsPDF, searches: any[]): void {
+    const y = this.HEADER_START_Y;
     if (searches.length === 0) {
       doc.setFontSize(12);
-      doc.text('No hay datos de búsquedas disponibles.', 14, 50);
+      doc.text('No hay datos de búsquedas disponibles.', this.MARGIN, y);
       return;
     }
 
-    // Título de sección
     doc.setFontSize(14);
     doc.setFont('helvetica', 'bold');
-    doc.text('Reporte de Búsquedas', 14, 50);
+    doc.text('Reporte de Búsquedas', this.MARGIN, y);
 
-    // Preparar datos para la tabla
     const tableData = searches.map((item, index) => [
       index + 1,
       item.search_type || 'N/A',
@@ -1109,14 +1098,19 @@ class ReportService {
       this.formatDateString(new Date(item.date_time), 'dd/MM/yyyy HH:mm')
     ]);
 
-    // Crear tabla
     (doc as any).autoTable({
       head: [['#', 'Tipo', 'Término', 'Usuario', 'Total', 'Fecha']],
       body: tableData,
-      startY: 60,
-      styles: { fontSize: 8 },
-      headStyles: { fillColor: [59, 130, 246] },
-      alternateRowStyles: { fillColor: [249, 250, 251] }
+      startY: y + 15,
+      margin: { left: this.MARGIN, right: this.MARGIN },
+      theme: 'grid',
+      styles: { fontSize: 8, cellPadding: 4 },
+      headStyles: {
+        fillColor: [80, 80, 80],
+        textColor: [255, 255, 255],
+        fontStyle: 'bold'
+      },
+      alternateRowStyles: { fillColor: [240, 240, 240] }
     });
   }
 
@@ -1125,18 +1119,17 @@ class ReportService {
    * Añade contenido de usuarios al PDF
    */
   private addUsersContent(doc: jsPDF, users: any[]): void {
+    const y = this.HEADER_START_Y;
     if (users.length === 0) {
       doc.setFontSize(12);
-      doc.text('No hay datos de usuarios disponibles.', 14, 50);
+      doc.text('No hay datos de usuarios disponibles.', this.MARGIN, y);
       return;
     }
 
-    // Título de sección
     doc.setFontSize(14);
     doc.setFont('helvetica', 'bold');
-    doc.text('Reporte de Usuarios', 14, 50);
+    doc.text('Reporte de Usuarios', this.MARGIN, y);
 
-    // Preparar datos para la tabla
     const tableData = users.map((item, index) => [
       index + 1,
       item.first_name || 'N/A',
@@ -1149,14 +1142,30 @@ class ReportService {
       this.formatDateString(new Date(item.created_at), 'dd/MM/yyyy')
     ]);
 
-    // Crear tabla
     (doc as any).autoTable({
       head: [['#', 'Nombre', 'Apellido', 'Email', 'Rol', 'Plan', 'Ciudad', 'Región', 'Fecha Registro']],
       body: tableData,
-      startY: 60,
-      styles: { fontSize: 7 },
-      headStyles: { fillColor: [59, 130, 246] },
-      alternateRowStyles: { fillColor: [249, 250, 251] }
+      startY: y + 15,
+      margin: { left: this.MARGIN, right: this.MARGIN },
+      theme: 'grid',
+      styles: { fontSize: 7, cellPadding: 4 },
+      columnStyles: {
+        0: { cellWidth: 8 },   // #
+        1: { cellWidth: 22 },  // Nombre
+        2: { cellWidth: 22 },  // Apellido
+        3: { cellWidth: 38 },  // Email
+        4: { cellWidth: 18 },  // Rol
+        5: { cellWidth: 18 },  // Plan
+        6: { cellWidth: 22 },  // Ciudad
+        7: { cellWidth: 22 },  // Región
+        8: { cellWidth: 22 }   // Fecha
+      },
+      headStyles: {
+        fillColor: [80, 80, 80],
+        textColor: [255, 255, 255],
+        fontStyle: 'bold'
+      },
+      alternateRowStyles: { fillColor: [240, 240, 240] }
     });
   }
 
