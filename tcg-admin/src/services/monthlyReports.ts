@@ -675,7 +675,7 @@ class MonthlyReportService {
       store.unique_users?.toString() || '0'
     ]);
 
-    const storesTableResult = autoTable(doc, {
+    autoTable(doc, {
       head: [['#', 'Tienda', 'Visitas', 'Usuarios Únicos']],
       body: allStoresData,
       startY: 70,
@@ -703,7 +703,7 @@ class MonthlyReportService {
       pageBreak: 'auto'
     });
 
-    let nextY = storesTableResult.finalY + L.spacingAfterTable;
+    let nextY = (doc as any).lastAutoTable.finalY + L.spacingAfterTable;
     if (nextY > L.pageBottomLimit) {
       doc.addPage();
       this.addCompanyLogo(doc);
