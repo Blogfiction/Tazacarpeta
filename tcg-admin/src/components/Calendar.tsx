@@ -71,18 +71,18 @@ export default function Calendar({ events, games, stores, onEventClick }: Calend
         <div
           key={day}
           onClick={() => handleDateClick(date)}
-          className={`h-16 sm:h-24 border border-gray-200 p-2 cursor-pointer transition-colors ${
-            hasEvent ? 'bg-blue-50 hover:bg-blue-100' : 'hover:bg-gray-50'
-          } ${isToday ? 'border-2 border-yellow-400' : ''}`}
+          className={`h-16 sm:h-24 bg-white shadow-sm hover: shadow-md transition-shadow border border-gray-200 p-2 cursor-pointer flex flex-col justify-between rounded-sm ${
+            hasEvent ? 'bg-blue-50 hover:bg-blue-100 border-2 border-blue-500' : 'hover:bg-gray-50'}
+          } ${isToday ? 'border-2 border-yellow-500 bg-yellow-50' : ''}`}
         >
-          <span className={`text-xs sm:text-sm font-medium ${
-            hasEvent ? 'text-blue-600' : 'text-gray-700'
+          <span className={`text-xs sm:text-sm font-semibold ${
+            hasEvent ? 'text-blue-700' : 'text-gray-800'
           }`}>
             {day}
           </span>
           {hasEvent && (
             <div className="mt-1">
-              <div className="w-2 h-2 bg-blue-600 rounded-full"></div>
+              <div className="w-3 h-3 bg-blue-600 rounded-full shadow-sm self-end"></div>
             </div>
           )}
         </div>
@@ -100,8 +100,8 @@ export default function Calendar({ events, games, stores, onEventClick }: Calend
   return (
     <>
       <div className="retro-container bg-white pixel-corners -mx-4 sm:mx-0">
-        <div className="p-2 sm:p-4 flex items-center justify-between border-b-4 border-gray-800">
-          <h2 className="font-press-start text-xs sm:text-sm text-gray-800">
+        <div className="p-4 flex items-center justify-between border-b-4 border-gray-800 bg-gray-100">
+          <h2 className="font-press-start text-sm sm:text-base text-gray-900 tracking-wide">
             {monthNames[currentDate.getMonth()]} {currentDate.getFullYear()}
           </h2>
           <div className="flex space-x-2">
@@ -119,9 +119,9 @@ export default function Calendar({ events, games, stores, onEventClick }: Calend
             </button>
           </div>
         </div>
-        <div className="grid grid-cols-7 gap-px">
+        <div className="grid grid-cols-7 gap-2 bg-gray-300 p-2 rounded-md">
           {['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'].map(day => (
-            <div key={day} className="p-2 text-center font-press-start text-[10px] sm:text-xs text-gray-800 border-b-4 border-gray-800">
+            <div key={day} className="p-3 text-center font-press-start text-xs text-gray-700 bg-gray-200 border-b-4 border-gray-800 uppercase tracking-wider">
               {day}
             </div>
           ))}
