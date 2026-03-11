@@ -668,7 +668,7 @@ class MonthlyReportService {
     doc.setFont('helvetica', 'bold');
     doc.text('RANKING DE TIENDAS MÁS VISITADAS', L.margin, 60);
 
-    const allStoresData = data.topStores.map((store, index) => [
+    const allStoresData = (data.topStores || []).map((store, index) => [
       (index + 1).toString(),
       store.name_store || 'Sin nombre',
       store.visits?.toString() || '0',
@@ -703,7 +703,9 @@ class MonthlyReportService {
       pageBreak: 'auto'
     });
 
-    let nextY = (doc as any).lastAutoTable.finalY + L.spacingAfterTable;
+    let nextY = (doc as any).lastAutoTable?.finalY
+    ? (doc as any).lastAutoTable.finalY + L.spacingAfterTable
+    : L.titleTop + 10;
     if (nextY > L.pageBottomLimit) {
       doc.addPage();
       this.addCompanyLogo(doc);
@@ -716,7 +718,7 @@ class MonthlyReportService {
     doc.text('RANKING DE JUEGOS MÁS CLICKEADOS', L.margin, nextY);
     nextY += 10;
 
-    const allGamesData = data.topGames.map((game, index) => [
+    const allGamesData = (data.topGames || []).map((game, index) => [
       (index + 1).toString(),
       game.name || 'Sin nombre',
       game.clicks?.toString() || '0',
@@ -759,7 +761,7 @@ class MonthlyReportService {
     doc.setFont('helvetica', 'bold');
     doc.text('RANKING DE ACTIVIDADES MÁS CONCURRIDAS', L.margin, 40);
 
-    const allActivitiesData = data.topActivities.map((activity, index) => [
+    const allActivitiesData = (data.topActivities || []).map((activity, index) => [
       (index + 1).toString(),
       activity.name_activity || 'Sin nombre',
       activity.store_name || 'Sin tienda',
@@ -804,7 +806,7 @@ class MonthlyReportService {
     doc.setFont('helvetica', 'bold');
     doc.text('RANKING DE CATEGORÍAS MÁS PARTICIPADAS', L.margin, 40);
     
-    const allCategoriesData = data.gameCategoryParticipation.map((category, index) => [
+    const allCategoriesData = (data.gameCategoryParticipation || []).map((category, index) => [
       (index + 1).toString(),
       category.category || 'Sin categoría',
       category.participation_count?.toString() || '0',
